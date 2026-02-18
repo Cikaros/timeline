@@ -1,0 +1,253 @@
+:root{
+  --bg1: #ffe6f0;
+  --bg2: #fff0f6;
+  --accent: #ff5c8a;
+  --heart-beat-duration: 1s;
+  --accent-strong: #ff2e6d;
+  --accent-gradient: linear-gradient(90deg,#ff5c8a,#ff2e6d);
+  --muted: #6b6b6b;
+}
+*{box-sizing:border-box}
+html,body,#app{height:100%}
+body{
+  margin:0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+  background: radial-gradient(circle at 10% 10%, var(--bg1), var(--bg2));
+  color:#222;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:32px;
+}
+.card{
+  width:960px;
+  max-width:95vw;
+  background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,245,250,0.9));
+  border-radius:20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  padding:28px;
+  position:relative;
+  overflow:hidden;
+}
+.header{
+  display:flex;
+  align-items:center;
+  gap:16px;
+}
+
+/* Right side header controls: keep counter above, actions inline and no-wrap on small screens */
+.header-right{ margin-left:auto; text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:6px }
+.header-right .header-actions{ display:flex; gap:8px; align-items:center; flex-wrap:nowrap }
+.header-right .header-actions .btn{ white-space:nowrap }
+
+@media (max-width: 480px){
+  .header-right .header-actions .btn{ padding:6px 8px; font-size:13px }
+}
+.title{
+  font-size:20px;
+  font-weight:700;
+  color:var(--accent);
+}
+.subtitle{color:var(--muted); font-size:13px}
+.big-counter{
+  font-size:48px;
+  color:var(--accent);
+  font-weight:800;
+  letter-spacing:1px;
+}
+/* keep days count on one line on small screens */
+.big-counter{ display:inline-block; white-space:nowrap }
+
+/* make the total count number more prominent but keep theme */
+#total-count{
+  font-weight:900;
+  /* gradient text using theme colors */
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 6px 18px rgba(255,92,138,0.06);
+  font-size: 40px; /* slightly larger */
+}
+.grid{display:grid;grid-template-columns:1fr 360px;gap:18px;margin-top:18px}
+.panel{background:rgba(255,255,255,0.6);padding:16px;border-radius:12px}
+.meet-list{max-height:420px;overflow:auto;margin-top:12px}
+.meet-item{display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:8px}
+.meet-item + .meet-item{margin-top:8px}
+.muted{color:var(--muted)}
+.btn{background:var(--accent);color:white;padding:8px 12px;border-radius:8px;border:none;cursor:pointer}
+.btn.ghost{background:transparent;border:1px solid rgba(0,0,0,0.06);color:var(--accent)}
+form{display:flex;gap:8px;flex-direction:column}
+input,textarea{padding:8px;border-radius:8px;border:1px solid rgba(0,0,0,0.08);font-size:14px}
+.controls{display:flex;gap:8px;align-items:center}
+.panel{background:rgba(255,255,255,0.6);padding:16px;border-radius:12px;position:relative;z-index:2}
+.heart-beat{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:120px;height:120px}
+@keyframes beat{
+  0%{transform: translate(-50%,-50%) scale(1)}
+  25%{transform: translate(-50%,-50%) scale(1.08)}
+  50%{transform: translate(-50%,-50%) scale(0.96)}
+  75%{transform: translate(-50%,-50%) scale(1.06)}
+  100%{transform: translate(-50%,-50%) scale(1)}
+}
+
+/* 涟漪效果：使用伪元素同步心跳产生扩散 */
+.heart-beat::before, .heart-beat::after{
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 120%;
+  height: 120%;
+  transform: translate(-50%, -50%) scale(0.6);
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, rgba(255,92,138,0.28) 0%, rgba(255,92,138,0.08) 40%, transparent 60%);
+  opacity: 0;
+  pointer-events: none;
+  animation: ripple 1s infinite cubic-bezier(.22,.84,.31,1);
+}
+.heart-beat::after{ animation-delay: 0.45s }
+
+@keyframes ripple{
+  0%{ opacity:0.36; transform: translate(-50%,-50%) scale(0.6) }
+  40%{ opacity:0.18; transform: translate(-50%,-50%) scale(1.2) }
+  100%{ opacity:0; transform: translate(-50%,-50%) scale(2.4) }
+}
+
+/* story-panel: background heart and ripple (behind content) */
+.panel.story-panel::before{
+  content: '';
+  position: absolute;
+  /* position controlled by CSS vars set from JS; defaults keep previous placement */
+  left: var(--heart-left, 50%);
+  top: var(--heart-top, 18px);
+  width: var(--heart-size, 160px);
+  height: var(--heart-size, 160px);
+  pointer-events: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 29.6'><path fill='%23ff5c8a' d='M23.6,0C20.4,0,17.9,1.8,16,4.1C14.1,1.8,11.6,0,8.4,0C3.8,0,0,3.8,0,8.4c0,9.8,16,21.2,16,21.2s16-11.4,16-21.2C32,3.8,28.2,0,23.6,0z'/></svg>");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  transform-origin: center;
+  mix-blend-mode: multiply;
+  opacity: 0.98;
+  filter: drop-shadow(0 8px 14px rgba(0,0,0,0.06));
+  z-index: 1; /* put heart above the ripple */
+  animation: beat var(--heart-beat-duration, 1s) infinite cubic-bezier(.22,.84,.31,1);
+  transform: translate(-50%, -50%);
+}
+
+/* multiple ripple rings placed behind content; they'll be DOM nodes inserted by JS */
+.panel.story-panel .ripple-ring{
+  position:absolute;
+  left: var(--heart-left, 50%);
+  top: var(--heart-top, 18px);
+  right: auto;
+  width: var(--heart-size, 160px);
+  height: var(--heart-size, 160px);
+  border-radius:50%;
+  pointer-events:none;
+  transform-origin:center;
+  transform: translate(-50%, -50%);
+  z-index:2; /* put ripples above the heart pseudo-element */
+  border: 1.6px solid rgba(255,92,138,0.16);
+  background: radial-gradient(circle at 50% 40%, rgba(255,92,138,0.06), transparent 35%);
+  opacity:0;
+  filter: blur(0.6px); /* soften edge */
+}
+
+/* softer, multi-ring ripples with thinner strokes and gentler opacity */
+.panel.story-panel .ripple-ring.r1{ }
+.panel.story-panel .ripple-ring.r2{ }
+.panel.story-panel .ripple-ring.r3{ }
+.panel.story-panel .ripple-ring.r4{ }
+.panel.story-panel .ripple-ring.r5{ }
+
+@keyframes ripple-ring{
+  0%{ opacity:0.48; transform: translate(-50%,-50%) scale(0.6); border-color: rgba(255,92,138,0.28) }
+  30%{ opacity:0.36; transform: translate(-50%,-50%) scale(1.1) }
+  60%{ opacity:0.18; transform: translate(-50%,-50%) scale(1.9) }
+  100%{ opacity:0; transform: translate(-50%,-50%) scale(3.6); border-color: rgba(255,92,138,0.02) }
+}
+
+/* gentle strong pulse state on click: briefly increase opacity and slightly speed up */
+.panel.story-panel .ripple-ring.strong{
+  animation-duration: 1.0s !important;
+  opacity: 0.7 !important;
+  border-color: rgba(255,20,80,0.28) !important;
+}
+
+/* allow ripple to expand outside the panel */
+.panel.story-panel{overflow:visible}
+.floating-hearts{position:absolute;left:0;bottom:0;right:0;top:0;pointer-events:none;overflow:visible}
+.floating-hearts .h{position:absolute;width:14px;height:14px;opacity:0.9;transform:translateY(0)}
+.floating-hearts .h svg{width:100%;height:100%;display:block;fill:var(--accent);mix-blend-mode:multiply;filter: drop-shadow(0 6px 10px rgba(0,0,0,0.04));}
+.floating-hearts .h.animate{animation:floatUp linear forwards}
+@keyframes floatUp{
+  0%{opacity:0;transform:translateY(6px) scale(0.8) rotate(0deg)}
+  10%{opacity:0.95}
+  60%{opacity:0.7}
+  100%{opacity:0;transform:translateY(-380px) scale(1.15) rotate(8deg)}
+}
+
+/* Responsive: tablet and mobile adjustments */
+@media (max-width: 1024px){
+  .grid{grid-template-columns:1fr 320px}
+  .panel{padding:14px}
+  .panel.story-panel::before{ width: calc(var(--heart-size,160px) * 0.92); height: calc(var(--heart-size,160px) * 0.92); }
+  .panel.story-panel .ripple-ring{ width: calc(var(--heart-size,160px) * 0.92); height: calc(var(--heart-size,160px) * 0.92); }
+}
+
+@media (max-width: 768px){
+  body{padding:20px}
+  .card{padding:20px}
+  .grid{display:block}
+  .panel{margin-bottom:16px}
+  .panel.story-panel{ text-align:center }
+  .panel.story-panel::before{ width: clamp(100px, 28vw, 140px); height: clamp(100px, 28vw, 140px); left: var(--heart-left, 50%); }
+  .panel.story-panel .ripple-ring{ width: clamp(100px, 28vw, 140px); height: clamp(100px, 28vw, 140px); }
+  .floating-hearts .h{ width:12px;height:12px }
+}
+
+@media (max-width: 480px){
+  :root{ --accent: #ff5c8a }
+  .card{padding:16px}
+  .title{font-size:18px}
+  .big-counter{font-size:36px}
+  #total-count{font-size:32px}
+  .panel.story-panel::before{ width: clamp(84px, 36vw, 120px); height: clamp(84px, 36vw, 120px); }
+  .panel.story-panel .ripple-ring{ width: clamp(84px, 36vw, 120px); height: clamp(84px, 36vw, 120px); }
+  .panel.story-panel .ripple-ring.r1,
+  .panel.story-panel .ripple-ring.r2,
+  .panel.story-panel .ripple-ring.r3{ animation-duration: 2.2s }
+  .floating-hearts .h{ width:8px;height:8px }
+}
+
+/* Toast notifications */
+#toast-container{display:flex;flex-direction:column;align-items:flex-end}
+.toast{font-size:13px}
+
+/* Highlight newly inserted item */
+.meet-item.highlight{background:linear-gradient(90deg, rgba(255,92,138,0.08), rgba(255,92,138,0.03));box-shadow:0 6px 16px rgba(255,92,138,0.06);transition:background 300ms ease}
+/* 日历视图样式 */
+.calendar-table{width:100%;border-collapse:collapse;margin:8px 0 16px 0;font-size:15px;user-select:none}
+.calendar-table th,.calendar-table td{width:14.2%;height:36px;text-align:center;padding:0;border:1px solid #f3d6e2;background:rgba(255,255,255,0.7)}
+.calendar-table th{background:var(--bg2);color:var(--accent);font-weight:700}
+.calendar-day{cursor:pointer;transition:background 0.18s}
+.calendar-day.has-meeting{background:linear-gradient(90deg,rgba(255,92,138,0.13),rgba(255,92,138,0.06));color:var(--accent-strong);font-weight:700;border:1.5px solid var(--accent)}
+.calendar-day:hover{background:rgba(255,92,138,0.18)}
+#calendar-note-popup{position:fixed;left:50%;top:30%;transform:translate(-50%,-30%);background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.13);padding:22px 18px;z-index:10001;min-width:220px;display:none}
+#calendar-note-popup .close-btn{position:absolute;right:10px;top:8px;background:none;border:none;font-size:18px;color:#888;cursor:pointer}
+#calendar-note-popup textarea{width:100%;margin-top:8px;min-height:48px}
+#calendar-note-popup .btn{margin-top:10px}
+/* calendar header and select styles to match theme */
+.calendar-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.calendar-nav{display:flex;align-items:center;gap:8px}
+.calendar-select{appearance:none;padding:6px 10px;border-radius:8px;border:1px solid rgba(0,0,0,0.06);background:linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,245,250,0.9));color:var(--accent-strong);font-weight:700}
+.calendar-select:focus{outline:none;box-shadow:0 6px 18px rgba(255,92,138,0.06)}
+.calendar-nav .btn.ghost{padding:6px 10px;border-radius:8px}
+.calendar-header div{font-size:18px}
+
+@media (max-width: 1024px){
+  .calendar-select{font-size:14px;padding:6px 8px}
+}
