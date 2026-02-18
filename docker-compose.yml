@@ -1,0 +1,11 @@
+services:
+  timeline:
+    build: .
+    image: timeline-app:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data.sqlite:/app/data.sqlite
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
