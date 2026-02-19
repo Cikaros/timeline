@@ -64,7 +64,6 @@ async function deleteMeeting(id){
 }
 
 function fmt(d){
-  // d expected as 'YYYY-MM-DD' or ISO; return localized date without time
   try{
     const s = (typeof d === 'string') ? d.split('T')[0] : d
     const [y,mo,da] = (s||'').split('-').map(Number)
@@ -74,7 +73,6 @@ function fmt(d){
 }
 
 function dateToISO(d){
-  // d is a Date object
   const y = d.getUTCFullYear()
   const m = String(d.getUTCMonth()+1).padStart(2,'0')
   const da = String(d.getUTCDate()).padStart(2,'0')
@@ -82,7 +80,6 @@ function dateToISO(d){
 }
 
 function daysBetween(a,b){
-  // compute difference in whole days using UTC date-only values
   function toUTCDate(x){
     if(typeof x === 'string'){
       const s = x.split('T')[0]
@@ -96,6 +93,157 @@ function daysBetween(a,b){
   const ms = 24*60*60*1000
   return Math.floor((db - da)/ms)
 }
+
+// 定位心形背景与生成涟漪环
+function positionHeartToCount(){
+  const panel = document.querySelector('.panel.story-panel')
+  const countWrap = panel && panel.querySelector('.count-wrap')
+  if(!panel || !countWrap) return
+  const panelRect = panel.getBoundingClientRect()
+  const countRect = countWrap.getBoundingClientRect()
+  const absCenterX = countRect.left + countRect.width/2
+  const absCenterY = countRect.top + countRect.height/2
+  const padding = 12
+  let heartSize = Math.max(60, Math.round(Math.max(countRect.width, countRect.height) + padding))
+  const vw = window.innerWidth || document.documentElement.clientWidth || 360
+  let maxSizeByVw
+  if(vw <= 480) maxSizeByVw = Math.round(Math.min(panelRect.width * 0.44, 100))
+  else if(vw <= 768) maxSizeByVw = Math.round(Math.min(panelRect.width * 0.5, 120))
+  else if(vw <= 1024) maxSizeByVw = Math.round(Math.min(panelRect.width * 0.45, 160))
+  else maxSizeByVw = Math.round(Math.min(panelRect.width * 0.5, 260))
+  heartSize = Math.min(heartSize, maxSizeByVw)
+  if(vw <= 1024) heartSize = Math.max(40, Math.round(heartSize * 0.95))
+  if(vw >= 1024){ heartSize = Math.min(Math.round(heartSize * 1.15), maxSizeByVw) }
+  const actionBtn = panel.querySelector('#celebrate')
+  if(actionBtn){
+    const btnRect = actionBtn.getBoundingClientRect()
+    const distToBtnTop = btnRect.top - absCenterY
+    if(distToBtnTop > 0){ const allowedHalf = Math.max(20, Math.floor(distToBtnTop - 12)); heartSize = Math.min(heartSize, allowedHalf*2) }
+  }
+  let relX = Math.round(absCenterX - panelRect.left)
+  let relY = Math.round(absCenterY - panelRect.top)
+  // small downward adjustment to visually center the heart (约 5px)
+  relY += 5
+  const margin = Math.round(heartSize * 0.25)
+  const minX = margin
+  const maxX = Math.max(margin, Math.round(panelRect.width - margin))
+  const minY = margin
+  const maxY = Math.max(margin, Math.round(panelRect.height - margin))
+  if(vw <= 768){ relY = relY - Math.round(heartSize * 0.06) }
+  else if(vw <= 1024){ relY = relY - Math.round(heartSize * 0.03) }
+  relX = Math.max(minX, Math.min(relX, maxX))
+  relY = Math.max(minY, Math.min(relY, maxY))
+  panel.style.setProperty('--heart-left', relX + 'px')
+  panel.style.setProperty('--heart-top', relY + 'px')
+  panel.style.setProperty('--heart-size', heartSize + 'px')
+  const rippleCount = 7
+  const raw = getComputedStyle(document.documentElement).getPropertyValue('--heart-beat-duration') || '1s'
+  const beatSec = Math.max(0.2, parseFloat(raw)) || 1
+  const totalDur = Math.max(beatSec * (rippleCount + 1) * 0.6, 1.2)
+  const emitSpacing = beatSec * 0.6
+  for(let i=1;i<=rippleCount;i++){
+    let el = panel.querySelector('.ripple-ring.r'+i)
+    if(!el){ el = document.createElement('div'); el.className = 'ripple-ring r'+i; panel.appendChild(el) }
+    el.style.left = relX + 'px'
+    el.style.top = relY + 'px'
+    const ringSize = Math.round(heartSize * 1.4)
+    el.style.width = ringSize + 'px'
+    el.style.height = ringSize + 'px'
+    el.style.animation = `ripple-ring ${totalDur}s infinite cubic-bezier(.22,.84,.31,1)`
+    el.style.animationDelay = `${(i-1) * emitSpacing}s`
+    el.style.borderColor = 'rgba(255,92,138,0.18)'
+    el.style.opacity = ''
+  }
+}
+
+// 弹出备注编辑框（模态）
+function showNotePopup(dateStr, meeting, onSave){
+  let overlay = document.getElementById('calendar-note-modal')
+  if(overlay) overlay.remove()
+  overlay = document.createElement('div')
+  overlay.id = 'calendar-note-modal'
+  overlay.style.position = 'fixed'
+  overlay.style.left = '0'
+  overlay.style.top = '0'
+  overlay.style.right = '0'
+  overlay.style.bottom = '0'
+  overlay.style.display = 'flex'
+  overlay.style.alignItems = 'center'
+  overlay.style.justifyContent = 'center'
+  overlay.style.zIndex = '10000'
+  overlay.style.background = 'rgba(0,0,0,0.28)'
+
+  const inner = document.createElement('div')
+  inner.style.width = '360px'
+  inner.style.maxWidth = '92%'
+  inner.style.background = 'white'
+  inner.style.borderRadius = '12px'
+  inner.style.padding = '16px'
+  inner.style.boxShadow = '0 20px 40px rgba(0,0,0,0.12)'
+  inner.style.position = 'relative'
+
+  const hdr = document.createElement('div')
+  hdr.style.fontWeight = '700'
+  hdr.style.marginBottom = '8px'
+  hdr.textContent = dateStr
+  inner.appendChild(hdr)
+
+  const ta = document.createElement('textarea')
+  ta.rows = 4
+  ta.style.width = '100%'
+  ta.style.boxSizing = 'border-box'
+  ta.placeholder = '备注（可选）'
+  ta.value = (meeting && meeting.note) ? meeting.note : ''
+  inner.appendChild(ta)
+
+  const btnWrap = document.createElement('div')
+  btnWrap.style.display = 'flex'
+  btnWrap.style.justifyContent = 'flex-end'
+  btnWrap.style.gap = '8px'
+  btnWrap.style.marginTop = '12px'
+
+  const cancelBtn = document.createElement('button')
+  cancelBtn.className = 'btn ghost'
+  cancelBtn.textContent = '取消'
+  const saveBtn = document.createElement('button')
+  saveBtn.className = 'btn'
+  saveBtn.textContent = '保存'
+
+  if(meeting && meeting.id){
+    const delBtn = document.createElement('button')
+    delBtn.className = 'btn ghost'
+    delBtn.textContent = '删除'
+    delBtn.addEventListener('click', async ()=>{
+      if(!confirm('确认删除该记录？')) return
+      try{
+        await deleteMeeting(meeting.id)
+        if(typeof onSave === 'function') onSave('')
+        showToast('已删除')
+      }catch(e){ showToast('删除失败','error') }
+      close()
+    })
+    btnWrap.appendChild(delBtn)
+  }
+
+  btnWrap.appendChild(cancelBtn)
+  btnWrap.appendChild(saveBtn)
+  inner.appendChild(btnWrap)
+  overlay.appendChild(inner)
+  document.body.appendChild(overlay)
+  ta.focus()
+
+  function close(){ overlay.remove(); document.removeEventListener('keydown', onKey) }
+  saveBtn.addEventListener('click', ()=>{
+    const note = ta.value.trim()
+    if(typeof onSave === 'function') onSave(note)
+    close()
+  })
+  cancelBtn.addEventListener('click', ()=> close())
+  overlay.addEventListener('click', (ev)=>{ if(ev.target === overlay) close() })
+  function onKey(e){ if(e.key === 'Escape') close() }
+  document.addEventListener('keydown', onKey)
+}
+ 
 
 // Use shared `parseInputToDates` imported from shared/dateParser.js
 
@@ -113,36 +261,60 @@ function renderCalendar(meetings, onDateClick, year, month, minYear){
   const startWeek = firstDay.getDay() || 7
   const daysInMonth = lastDay.getDate()
 
-  // header with month navigation
+  // header with combined selectors (保留下拉作为唯一控件)
   const header = document.createElement('div')
   header.className = 'calendar-header'
   header.style.display = 'flex'
   header.style.justifyContent = 'space-between'
   header.style.alignItems = 'center'
   header.style.marginBottom = '8px'
-  const title = document.createElement('div')
-  title.style.fontWeight = '700'
-  title.textContent = `${year} 年 ${String(month+1).padStart(2,'0')} 月`
-  const nav = document.createElement('div')
-  nav.className = 'calendar-nav'
-  // year/month selectors
+
+  const left = document.createElement('div')
+  left.style.display = 'flex'
+  left.style.alignItems = 'center'
+  left.style.gap = '12px'
+
+  // year/month selectors (年份范围按当前时间与 firstMeetingYear 动态获取)
   const yearSel = document.createElement('select')
   const monthSel = document.createElement('select')
-  const nowYear = new Date().getFullYear()
-  // determine minYear from optional global firstMeetingYear variable (set in createApp)
-  const minY = (typeof minYear === 'number' && minYear) ? minYear : Math.max(nowYear-5, year-3)
-  for(let y = minY; y <= nowYear+1; y++){
+  const now = new Date()
+  const nowYear = now.getFullYear()
+  const nowMonth = now.getMonth()
+  // prefer minYear param (来自 createApp 的 firstMeetingYear)，否则向后兼容默认
+  const minY = (typeof minYear === 'number' && minYear) ? minYear : Math.max(nowYear - 5, year - 3)
+  const maxY = nowYear
+  for(let y = minY; y <= maxY; y++){
     const o = document.createElement('option'); o.value = y; o.textContent = y + '年'; if(y === year) o.selected = true; yearSel.appendChild(o)
   }
-  for(let m=1;m<=12;m++){ const o = document.createElement('option'); o.value = m-1; o.textContent = m + '月'; if(m-1 === month) o.selected = true; monthSel.appendChild(o) }
+  // helper to (re)build month options according to selected year (prevent selecting future months)
+  function buildMonthOptions(forYear){
+    monthSel.innerHTML = ''
+    const maxM = (forYear === nowYear) ? nowMonth : 11
+    for(let m=0;m<=maxM;m++){
+      const o = document.createElement('option')
+      o.value = m
+      o.textContent = (m+1) + '月'
+      if(m === month) o.selected = true
+      monthSel.appendChild(o)
+    }
+    // if current selected month greater than maxM, clamp selection to maxM
+    if(Number(monthSel.value) > maxM) monthSel.value = String(maxM)
+  }
+  buildMonthOptions(year)
   yearSel.style.marginRight = '8px'
   yearSel.className = 'calendar-select'
   monthSel.className = 'calendar-select'
-  nav.appendChild(yearSel)
-  nav.appendChild(monthSel)
-  // 年/月下拉已提供导航，移除上一月/下一月按钮以简化 UI
+
+  left.appendChild(yearSel)
+  left.appendChild(monthSel)
+
+  // keep the calendar title concise (optional small label)
+  const title = document.createElement('div')
+  title.style.fontWeight = '700'
+  title.textContent = '' // merged into selectors; 保留为空以避免重复显示
+
+  header.appendChild(left)
   header.appendChild(title)
-  header.appendChild(nav)
   calendarEl.appendChild(header)
 
   const table = document.createElement('table')
@@ -157,6 +329,7 @@ function renderCalendar(meetings, onDateClick, year, month, minYear){
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
     const td = document.createElement('td')
     td.className = 'calendar-day'
+    td.dataset.date = dateStr
     td.textContent = d
     if(dateSet.has(dateStr)) td.classList.add('has-meeting')
     td.addEventListener('click', ()=> onDateClick && onDateClick(dateStr))
@@ -170,6 +343,8 @@ function renderCalendar(meetings, onDateClick, year, month, minYear){
   // navigation handled by下拉选择控件
   yearSel.addEventListener('change', ()=>{
     const ny = Number(yearSel.value)
+    // rebuild month options for the newly selected year to prevent future months
+    buildMonthOptions(ny)
     const nm = Number(monthSel.value)
     document.dispatchEvent(new CustomEvent('calendar:change', { detail: { year: ny, month: nm } }))
   })
@@ -178,132 +353,69 @@ function renderCalendar(meetings, onDateClick, year, month, minYear){
     const nm = Number(monthSel.value)
     document.dispatchEvent(new CustomEvent('calendar:change', { detail: { year: ny, month: nm } }))
   })
-}
 
-// 弹窗显示与编辑备注
-function showNotePopup(dateStr, meeting, onSave){
-  let popup = document.getElementById('calendar-note-popup')
-  if(!popup){
-    popup = document.createElement('div')
-    popup.id = 'calendar-note-popup'
-    document.body.appendChild(popup)
+  // 平板/手机端支持左右滑动切换上/下个月（PC 不启用）
+  const isTouchCapable = ('ontouchstart' in window) || window.matchMedia && window.matchMedia('(pointer:coarse)').matches
+  // helper: debounce calendar change dispatch for touch swipes to avoid rapid re-renders
+  function scheduleCalendarChange(ny, nm){
+    // attach timer to calendarEl so multiple renderCalendar calls won't clash
+    if(calendarEl._calChangeTimer) clearTimeout(calendarEl._calChangeTimer)
+    calendarEl._calChangeTimer = setTimeout(()=>{
+      calendarEl._calChangeTimer = null
+      document.dispatchEvent(new CustomEvent('calendar:change', { detail: { year: ny, month: nm } }))
+    }, 100)
   }
-  popup.innerHTML = ''
-  popup.style.display = 'block'
-  const closeBtn = document.createElement('button')
-  closeBtn.className = 'close-btn'
-  closeBtn.textContent = '×'
-  closeBtn.onclick = ()=> popup.style.display = 'none'
-  popup.appendChild(closeBtn)
-  const title = document.createElement('div')
-  title.style.fontWeight = '700'
-  title.style.marginBottom = '8px'
-  title.textContent = dateStr
-  popup.appendChild(title)
-  const ta = document.createElement('textarea')
-  ta.value = meeting ? (meeting.note||'') : ''
-  ta.placeholder = meeting ? '可编辑备注' : '可添加备注'
-  popup.appendChild(ta)
-  const saveBtn = document.createElement('button')
-  saveBtn.className = 'btn'
-  saveBtn.textContent = meeting ? '保存修改' : '添加记录'
-  saveBtn.onclick = async ()=>{
-    const note = ta.value.trim()
-    if(onSave) await onSave(note)
-    popup.style.display = 'none'
-  }
-  popup.appendChild(saveBtn)
-  if(meeting){
-    const del = document.createElement('button')
-    del.className = 'btn ghost'
-    del.style.marginLeft = '8px'
-    del.textContent = '删除记录'
-    del.onclick = async ()=>{
-      if(!confirm('确认删除该日期记录？')) return
-      await deleteMeeting(meeting.id)
-      popup.style.display = 'none'
-      document.dispatchEvent(new CustomEvent('meetings:changed'))
-    }
-    popup.appendChild(del)
-  }
-}
-
-// 定位心形背景与生成涟漪环
-function positionHeartToCount(){
-  const panel = document.querySelector('.panel.story-panel')
-  const countWrap = panel && panel.querySelector('.count-wrap')
-  if(!panel || !countWrap) return
-  const panelRect = panel.getBoundingClientRect()
-  const countRect = countWrap.getBoundingClientRect()
-  // absolute center of count
-  const absCenterX = countRect.left + countRect.width/2
-  const absCenterY = countRect.top + countRect.height/2
-  const padding = 12
-  // base heart size from count size, but constrained by panel and viewport
-  let heartSize = Math.max(60, Math.round(Math.max(countRect.width, countRect.height) + padding))
-  const vw = window.innerWidth || document.documentElement.clientWidth || 360
-  let maxSizeByVw
-  if(vw <= 480) maxSizeByVw = Math.round(Math.min(panelRect.width * 0.44, 100))
-  else if(vw <= 768) maxSizeByVw = Math.round(Math.min(panelRect.width * 0.5, 120))
-  else if(vw <= 1024) maxSizeByVw = Math.round(Math.min(panelRect.width * 0.45, 160))
-  else maxSizeByVw = Math.round(Math.min(panelRect.width * 0.42, 220))
-  heartSize = Math.min(heartSize, maxSizeByVw)
-  if(vw <= 1024) heartSize = Math.max(40, Math.round(heartSize * 0.95))
-
-  // If there's an action button below the heart area, reduce heart size to avoid overlap
-  const actionBtn = panel.querySelector('#celebrate')
-  if(actionBtn){
-    const btnRect = actionBtn.getBoundingClientRect()
-    const distToBtnTop = btnRect.top - absCenterY
-    if(distToBtnTop > 0){ const allowedHalf = Math.max(20, Math.floor(distToBtnTop - 12)); heartSize = Math.min(heartSize, allowedHalf*2) }
-  }
-
-  // compute relative center inside panel and clamp to panel bounds so heart never overflows
-  let relX = Math.round(absCenterX - panelRect.left)
-  let relY = Math.round(absCenterY - panelRect.top)
-  const margin = Math.round(heartSize * 0.25)
-  const minX = margin
-  const maxX = Math.max(margin, Math.round(panelRect.width - margin))
-  const minY = margin
-  const maxY = Math.max(margin, Math.round(panelRect.height - margin))
-
-  // small upward nudge on mobile/tablet to avoid overlapping controls, but keep within bounds
-  if(vw <= 768){ relY = relY - Math.round(heartSize * 0.06) }
-  else if(vw <= 1024){ relY = relY - Math.round(heartSize * 0.03) }
-
-  relX = Math.max(minX, Math.min(relX, maxX))
-  relY = Math.max(minY, Math.min(relY, maxY))
-
-  panel.style.setProperty('--heart-left', relX + 'px')
-  panel.style.setProperty('--heart-top', relY + 'px')
-  panel.style.setProperty('--heart-size', heartSize + 'px')
-
-  // create or update ripple rings positioned using panel-local coordinates
-  // Align ripple emission with heart beat: make rings denser and staggered closer together
-  const rippleCount = 7
-  // read heartbeat duration from CSS var (like '1s') or default to 1s
-  const raw = getComputedStyle(document.documentElement).getPropertyValue('--heart-beat-duration') || '1s'
-  const beatSec = Math.max(0.2, parseFloat(raw)) || 1
-  // total duration spans several beats so rings overlap; keep a minimum duration
-  const totalDur = Math.max(beatSec * (rippleCount + 1) * 0.6, 1.2)
-  // tighter spacing between emitted rings (0.6 * beatSec)
-  const emitSpacing = beatSec * 0.6
-  for(let i=1;i<=rippleCount;i++){
-    let el = panel.querySelector('.ripple-ring.r'+i)
-    if(!el){ el = document.createElement('div'); el.className = 'ripple-ring r'+i; panel.appendChild(el) }
-    el.style.left = relX + 'px'
-    el.style.top = relY + 'px'
-    // make ripple rings slightly larger than the heart so they expand visibly
-    const ringSize = Math.round(heartSize * 1.4)
-    el.style.width = ringSize + 'px'
-    el.style.height = ringSize + 'px'
-    // total animation spans multiple beats so that rings overlap; stagger by emitSpacing
-    el.style.animation = `ripple-ring ${totalDur}s infinite cubic-bezier(.22,.84,.31,1)`
-    el.style.animationDelay = `${(i-1) * emitSpacing}s`
-    el.style.borderColor = 'rgba(255,92,138,0.18)'
-    el.style.opacity = ''
+  if(isTouchCapable){
+    let sx = 0, sy = 0, tracking = false, touchId = null
+    calendarEl.addEventListener('touchstart', (ev)=>{
+      const t = ev.touches[0]
+      if(!t) return
+      touchId = t.identifier
+      sx = t.clientX; sy = t.clientY; tracking = true
+    }, { passive: true })
+    calendarEl.addEventListener('touchmove', ()=>{/* passive, no-op */}, { passive: true })
+    calendarEl.addEventListener('touchcancel', ()=>{ tracking = false; touchId = null }, { passive: true })
+    calendarEl.addEventListener('touchend', (ev)=>{
+      if(!tracking) return
+      // find the matching changed touch by identifier
+      let t = ev.changedTouches[0]
+      for(let i=0;i<ev.changedTouches.length;i++){ if(ev.changedTouches[i].identifier === touchId){ t = ev.changedTouches[i]; break } }
+      tracking = false; touchId = null
+      if(!t) return
+      const dx = t.clientX - sx
+      const dy = t.clientY - sy
+      const absX = Math.abs(dx), absY = Math.abs(dy)
+      const MIN_SWIPE = 30
+      if(absX > MIN_SWIPE && absX > absY){
+        let ny = year, nm = month
+        if(dx < 0){ // left -> next month
+          nm = month + 1
+          if(nm > 11){ nm = 0; ny = year + 1 }
+        } else { // right -> prev month
+          nm = month - 1
+          if(nm < 0){ nm = 11; ny = year - 1 }
+        }
+        // enforce allowed range: minY (from above) .. nowYear/nowMonth
+        const now = new Date()
+        const nowYear = now.getFullYear()
+        const nowMonth = now.getMonth()
+        // clamp year/month upper bound
+        if(ny > nowYear){ ny = nowYear; nm = nowMonth }
+        if(ny === nowYear && nm > nowMonth) nm = nowMonth
+        // clamp lower bound if minY provided
+        if(typeof minY === 'number' && minY){ if(ny < minY){ ny = minY; nm = 0 } }
+        // if nothing changes, avoid dispatching
+        if(ny === year && nm === month) return
+        // schedule a debounced dispatch to avoid rapid successive re-renders
+        scheduleCalendarChange(ny, nm)
+      }
+    }, { passive: true })
   }
 }
+
+// 内联日历弹窗实现已移除；保留顶部模态 `showNotePopup` 实现以统一行为。
+
+
 
 async function createApp(){
   const root = document.getElementById('app')
@@ -340,7 +452,6 @@ async function createApp(){
           <textarea id="meet-note" rows="2" placeholder="备注（可选）"></textarea>
           <div class="controls">
             <button class="btn" type="submit">添加</button>
-            <button class="btn ghost" type="button" id="clear-all">清空记录</button>
           </div>
         </form>
         <div class="muted" style="margin-top:12px">历史日历</div>
@@ -374,7 +485,6 @@ async function createApp(){
   const form = document.getElementById('meet-form')
   const daysCounter = document.getElementById('days-counter')
   const totalCount = document.getElementById('total-count')
-  const clearBtn = document.getElementById('clear-all')
   const celebrateBtn = document.getElementById('celebrate')
   const setFirstBtn = document.getElementById('set-first')
   const changePassBtn = document.getElementById('change-pass')
@@ -521,12 +631,7 @@ async function createApp(){
     }catch(err){ if(String(err).includes('unauthorized')) return showLogin(root); console.error(err) }
   })
 
-  clearBtn.addEventListener('click', ()=>{
-    if(confirm('确认清空所有记录？')){
-      // call backend bulk clear endpoint
-      apiFetch(API_ROOT + '/api/meetings/clear', { method: 'POST' }).then(()=> render()).catch(err=>{ if(String(err).includes('unauthorized')) return showLogin(root); console.error(err) })
-    }
-  })
+  // 已移除“清空记录”功能
 
   celebrateBtn.addEventListener('click', ()=>{
     // 仅产生漂浮爱心效果，不改变 ripple 的自然循环
