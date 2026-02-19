@@ -79,7 +79,29 @@ body{
 .btn{background:var(--accent);color:white;padding:8px 12px;border-radius:8px;border:none;cursor:pointer}
 .btn.ghost{background:transparent;border:1px solid rgba(0,0,0,0.06);color:var(--accent)}
 form{display:flex;gap:8px;flex-direction:column}
-input,textarea{padding:8px;border-radius:8px;border:1px solid rgba(0,0,0,0.08);font-size:14px}
+input,textarea{
+  padding:10px 12px;
+  border-radius:10px;
+  border:1px solid rgba(255,92,138,0.12);
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(255,245,250,0.96));
+  font-size:14px;
+  transition: box-shadow 160ms ease, border-color 160ms ease, transform 120ms ease;
+  outline: none;
+  color: #222;
+}
+
+input:focus, textarea:focus{
+  box-shadow: 0 10px 30px rgba(255,92,138,0.08);
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+input::placeholder, textarea::placeholder{ color: rgba(0,0,0,0.28) }
+
+textarea{ min-height:84px; resize:vertical }
+
+/* 微调日期输入的外观以与主题统一 */
+input[type="date"]{ padding:8px 10px }
 .controls{display:flex;gap:8px;align-items:center}
 .panel{background:rgba(255,255,255,0.6);padding:16px;border-radius:12px;position:relative;z-index:2}
 .heart-beat{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:120px;height:120px}
@@ -227,14 +249,57 @@ input,textarea{padding:8px;border-radius:8px;border:1px solid rgba(0,0,0,0.08);f
 #toast-container{display:flex;flex-direction:column;align-items:flex-end}
 .toast{font-size:13px}
 
+/* 日历备注模态内样式 */
+#calendar-note-modal textarea{
+  width:100%;
+  padding:10px 12px;
+  border-radius:8px;
+  border:1px solid rgba(255,92,138,0.12);
+  background: linear-gradient(180deg, #fff, rgba(255,245,250,0.98));
+  box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+  font-size:14px;
+  color:#222;
+  outline:none;
+}
+
+#calendar-note-modal .btn{ padding:8px 12px }
+
 /* Highlight newly inserted item */
 .meet-item.highlight{background:linear-gradient(90deg, rgba(255,92,138,0.08), rgba(255,92,138,0.03));box-shadow:0 6px 16px rgba(255,92,138,0.06);transition:background 300ms ease}
 /* 日历视图样式 */
 .calendar-table{width:100%;border-collapse:collapse;margin:8px 0 16px 0;font-size:15px;user-select:none}
-.calendar-table th,.calendar-table td{width:14.2%;height:36px;text-align:center;padding:0;border:1px solid #f3d6e2;background:rgba(255,255,255,0.7)}
+.calendar-table th,.calendar-table td{width:14.2%;height:36px;text-align:center;padding:0;border:1px solid #f3d6e2;background:#ffffff}
 .calendar-table th{background:var(--bg2);color:var(--accent);font-weight:700}
-.calendar-day{cursor:pointer;transition:background 0.18s}
+.calendar-day{cursor:pointer;transition:background 0.18s;position:relative;overflow:hidden;z-index:1}
 .calendar-day.has-meeting{background:linear-gradient(90deg,rgba(255,92,138,0.13),rgba(255,92,138,0.06));color:var(--accent-strong);font-weight:700;border:1.5px solid var(--accent)}
+
+/* 当有备注时，在单元格内部显示呼吸的爱心背景（限制在单元格内） */
+.calendar-day.has-note::before{
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(1);
+  width: 72%;
+  height: 72%;
+  pointer-events: none;
+  z-index: 0;
+  /* 使用更浓的主题色（--accent-strong）并提高可见性 */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 29.6'><path fill='%23ff2e6d' d='M23.6,0C20.4,0,17.9,1.8,16,4.1C14.1,1.8,11.6,0,8.4,0C3.8,0,0,3.8,0,8.4c0,9.8,16,21.2,16,21.2s16-11.4,16-21.2C32,3.8,28.2,0,23.6,0z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  opacity: 0.36;
+  filter: drop-shadow(0 4px 8px rgba(255,46,109,0.12));
+  mix-blend-mode: normal;
+  animation: heartPulse var(--heart-beat-duration, 1s) infinite ease-in-out;
+}
+
+@keyframes heartPulse{
+  0%{ transform: translate(-50%, -50%) scale(0.96); opacity:0.36 }
+  50%{ transform: translate(-50%, -50%) scale(1.18); opacity:0.68 }
+  100%{ transform: translate(-50%, -50%) scale(0.96); opacity:0.36 }
+}
 .calendar-day:hover{background:rgba(255,92,138,0.18)}
 #calendar-note-popup{position:fixed;left:50%;top:30%;transform:translate(-50%,-30%);background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.13);padding:22px 18px;z-index:10001;min-width:220px;display:none}
 #calendar-note-popup .close-btn{position:absolute;right:10px;top:8px;background:none;border:none;font-size:18px;color:#888;cursor:pointer}
