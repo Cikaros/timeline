@@ -252,7 +252,12 @@ function renderCalendar(meetings, onDateClick, year, month, minYear){
   const calendarEl = document.getElementById('calendar-view')
   if(!calendarEl) return
   calendarEl.innerHTML = ''
-  const dateSet = new Set(meetings.map(m => (m && m.date) ? m.date.split('T')[0] : m.date))
+  // build a map of meetings by date (ISO yyyy-mm-dd) so we can mark notes
+  const meetingMap = new Map(meetings.map(m => {
+    const key = (m && m.date) ? (m.date.split('T')[0]) : m.date
+    return [key, m]
+  }))
+  const dateSet = new Set(Array.from(meetingMap.keys()))
   const today = new Date()
   year = typeof year === 'number' ? year : today.getFullYear()
   month = typeof month === 'number' ? month : today.getMonth()
@@ -332,6 +337,9 @@ function renderCalendar(meetings, onDateClick, year, month, minYear){
     td.dataset.date = dateStr
     td.textContent = d
     if(dateSet.has(dateStr)) td.classList.add('has-meeting')
+    const meeting = meetingMap.get(dateStr)
+    // if this date's meeting has a note, add marker class
+    if(meeting && meeting.note) td.classList.add('has-note')
     td.addEventListener('click', ()=> onDateClick && onDateClick(dateStr))
     tr.appendChild(td)
     if((startWeek + d - 1) % 7 === 0){ tbody.appendChild(tr); tr = document.createElement('tr') }
