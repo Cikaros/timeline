@@ -1,7 +1,11 @@
 node_modules
 web/dist
+data/
 .env
 *.sqlite
+*.db
+*.db-shm
+*.db-wal
 *.lock
 claude_code_env.sh
 CLAUDE.md
