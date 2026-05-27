@@ -4,7 +4,7 @@ import { statements } from './statements.js'
 import { mkdir } from "node:fs/promises";
 
 // 确保数据目录存在
-await mkdir("../data", { recursive: true })
+await mkdir("data", { recursive: true })
 
 // 初始化数据库连接
 export const db = new Database(CONFIG.DB_PATH)
