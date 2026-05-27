@@ -4,14 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "api": "node server.js",
-    "build": "vite build",
-    "preview": "vite preview"
+    "dev": "vite --config web/vite.config.js",
+    "api": "bun run api/server.js",
+    "build": "vite build --config web/vite.config.js",
+    "preview": "vite preview --config web/vite.config.js"
   },
-  "dependencies": {
-    
-  },
+  "dependencies": {},
   "devDependencies": {
     "vite": "^5.0.0"
   }

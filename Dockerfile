@@ -1,27 +1,19 @@
-# Multi-stage build: build frontend with Node, run server with Bun
+# Multi-stage build: build frontend with Vite, run server with Bun
 
-# Stage 1: build frontend assets with node (Vite)
+# Stage 1: build frontend assets
 FROM oven/bun:latest AS builder
 WORKDIR /build
-# copy package.json and install deps for building
-COPY package.json package-lock.json* ./
-# copy source and build
-COPY . .
-RUN bun i &&bun run build
+COPY package.json ./
+COPY web ./web
+RUN bun i && cd web && bun run build
 
-# Stage 2: runtime using Bun (official image)
+# Stage 2: runtime using Bun
 FROM oven/bun:latest
 WORKDIR /app
-# copy built frontend output (dist) into app root
-COPY --from=builder /build/dist/. ./
-# copy backend server and shared modules
-COPY --from=builder /build/server.js ./
-COPY --from=builder /build/shared ./shared
-# Copy any other non-built assets that server might serve directly from project root
-# (if you have public/ or other static files placed outside dist, add them here)
-
-# expose port used by Bun server
+COPY --from=builder /build/web/dist/. ./
+COPY api ./api
+COPY --from=builder /build/api/utils ./api/utils
+COPY package.json ./
+RUN bun i --production
 EXPOSE 3000
-
-# Use Bun to run the server (server.js uses Bun.serve)
-CMD ["bun", "run", "server.js"]
+CMD ["bun", "run", "api/server.js"]
