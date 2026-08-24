@@ -24,6 +24,9 @@ const RIPPLE_SIZE_RATIO = 1.4
 const RIPPLE_EMIT_RATIO = 0.6
 const RIPPLE_MIN_BEAT_SEC = 0.2
 const RIPPLE_MIN_DURATION = 1.2
+// 心电图波形参数
+const ECG_WAVE_RATIO = 1.5
+const ECG_TRAIL_SPAN = 0.42
 
 // 漂浮爱心分布配置：[断点, leftMin%, leftRange%, bottomMin%, bottomRange%]
 const HEART_DISTRIBUTION_BREAKPOINTS = [
@@ -102,10 +105,34 @@ export function positionHeartToCount() {
   panel.style.setProperty('--heart-top', `${relY}px`)
   panel.style.setProperty('--heart-size', `${heartSize}px`)
 
-  // 生成涟漪环
+  // 心电图线：与心形同步搏动
+  let ecg = panel.querySelector('.ecg-line')
+  if (!ecg) {
+    ecg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+    ecg.setAttribute('class', 'ecg-line')
+    ecg.setAttribute('viewBox', '0 0 300 60')
+    ecg.setAttribute('preserveAspectRatio', 'none')
+    ecg.setAttribute('aria-hidden', 'true')
+    const ECG_D = 'M0 32 H88 L96 32 L101 26 L106 32 H128 L134 38 L139 12 L144 50 L149 28 L154 32 H196 L203 25 L210 32 H300'
+    ecg.innerHTML =
+      `<path class="ecg-base" fill="none" d="${ECG_D}"></path>` +
+      `<path class="ecg-glow" fill="none" stroke-linejoin="round" pathLength="1000" d="${ECG_D}"></path>` +
+      `<path class="ecg-core" fill="none" stroke-linejoin="round" pathLength="1000" d="${ECG_D}"></path>`
+    panel.appendChild(ecg)
+  }
+
+  const ecgWidth = Math.round(heartSize * ECG_WAVE_RATIO)
   const rawBeatDuration = getComputedStyle(document.documentElement)
     .getPropertyValue('--heart-beat-duration') || '1s'
   const beatSec = Math.max(RIPPLE_MIN_BEAT_SEC, parseFloat(rawBeatDuration)) || 1
+  const ecgDuration = beatSec
+  ecg.style.setProperty('--ecg-dur', `${ecgDuration}s`)
+  ecg.style.setProperty('--ecg-trail', `${(ECG_TRAIL_SPAN * ecgDuration).toFixed(3)}s`)
+  ecg.style.left = `${relX}px`
+  ecg.style.top = `${relY}px`
+  ecg.style.width = `${ecgWidth}px`
+  ecg.style.height = `${Math.round(ecgWidth / 5)}px`
+  // 生成涟漪环
   const totalDur = Math.max(beatSec * (RIPPLE_RING_COUNT + 1) * RIPPLE_EMIT_RATIO, RIPPLE_MIN_DURATION)
   const emitSpacing = beatSec * RIPPLE_EMIT_RATIO
 

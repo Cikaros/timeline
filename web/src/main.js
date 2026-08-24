@@ -173,9 +173,9 @@ async function createApp() {
           <div style="font-weight:700;color:var(--accent);font-size:18px">我们的故事</div>
           <div style="margin-top:12px;color:var(--muted)">每一次相聚，都是我最想收藏的日子。</div>
           <div style="margin-top:20px">
-            <div class="count-wrap" style="display:inline-block;padding:8px 18px;border-radius:6px;">
+            <div class="count-wrap" style="display:inline-block;padding:8px 18px;border-radius:6px;position:relative;z-index:4;">
               <div class="muted" style="text-align:center">总次数</div>
-              <div id="total-count" style="font-size:34px;font-weight:800;color:var(--accent);text-align:center">0</div>
+              <div id="total-count" style="font-size:34px;font-weight:800;color:#c9184f;text-align:center">0</div>
             </div>
           </div>
           <div style="margin-top:18px">

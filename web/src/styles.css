@@ -124,7 +124,7 @@ input[type="date"]{ padding:8px 10px }
   background-position: center;
   transform-origin: center;
   mix-blend-mode: multiply;
-  opacity: 0.98;
+  opacity: 0.82;
   filter: drop-shadow(0 8px 14px rgba(0,0,0,0.06));
   z-index: 1; /* put heart above the ripple */
   animation: beat var(--heart-beat-duration, 1s) infinite cubic-bezier(.22,.84,.31,1);
@@ -148,6 +148,52 @@ input[type="date"]{ padding:8px 10px }
   background: radial-gradient(circle at 50% 40%, rgba(255,92,138,0.06), transparent 35%);
   opacity:0;
   filter: blur(0.6px); /* soften edge */
+}
+
+/* 心电图线：横穿心形中心，脉搏光带与心跳同步（纯 CSS dash 方案）
+   层级：心形(1) < 涟漪(2) < 心电图(3) < 文字(4) */
+.panel.story-panel .ecg-line{
+  position:absolute;
+  left: var(--heart-left, 50%);
+  top: var(--heart-top, 18px);
+  pointer-events:none;
+  transform: translate(-50%, -50%);
+  overflow:visible;
+  z-index:3; /* 明确覆盖在心形与涟漪之上 */
+}
+/* 静态底轨：白色细线，刻出波形轮廓 */
+.panel.story-panel .ecg-base{
+  stroke:#fff;
+  stroke-width:1;
+  stroke-linejoin:round;
+  opacity:.9;
+}
+/* 光带外层柔光：玫红宽描边 + 模糊，形成呼吸感 */
+.panel.story-panel .ecg-glow{
+  stroke:var(--accent-strong);
+  stroke-width:4;
+  opacity:.32;
+  stroke-linecap:round;
+  filter:blur(2.5px);
+  stroke-dasharray:110 890;
+  animation:ecg-sweep var(--ecg-dur, 1s) linear infinite;
+}
+/* 光带核心：白芯玫红细描边，与底轨同节奏扫过 */
+.panel.story-panel .ecg-core{
+  stroke:var(--accent-strong);
+  stroke-width:2.2;
+  stroke-linejoin:round;
+  stroke-linecap:round;
+  stroke-dasharray:110 890;
+  animation:ecg-sweep var(--ecg-dur, 1s) linear infinite;
+}
+/* 白芯：叠在核心之上，只露出光带中段 */
+.panel.story-panel .ecg-core{
+  paint-order:stroke;
+}
+@keyframes ecg-sweep{
+  from{stroke-dashoffset:1110}
+  to{stroke-dashoffset:0}
 }
 
 @keyframes ripple-ring{
