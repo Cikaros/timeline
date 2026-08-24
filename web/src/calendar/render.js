@@ -21,11 +21,11 @@ export function renderCalendar(onDateClick, signal) {
   const dateSet = new Set(meetingMap.keys())
 
   const today = new Date()
-  const todayStr = `${today.getUTCFullYear()}-${String(today.getUTCMonth() + 1).padStart(2, '0')}-${String(today.getUTCDate()).padStart(2, '0')}`
-  const firstDay = new Date(appState.calYear, appState.calMonth, 1)
-  const lastDay = new Date(appState.calYear, appState.calMonth + 1, 0)
-  const startWeek = firstDay.getDay() || 7
-  const daysInMonth = lastDay.getDate()
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  const firstDayUtc = new Date(Date.UTC(appState.calYear, appState.calMonth, 1))
+  const daysInMonth = new Date(Date.UTC(appState.calYear, appState.calMonth + 1, 0)).getUTCDate()
+  // getUTCDay: 0=Sunday -> 7, 保持表头“一~日”的周一开头顺序
+  const startWeek = firstDayUtc.getUTCDay() || 7
 
   // 日历头部
   const header = document.createElement('div')

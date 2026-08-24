@@ -245,18 +245,26 @@ function bindEvents(signal) {
 
     try {
       const result = await meetingsAPI.create(newDates.join(','), note)
-      const inserted = (result?.inserted || []).map(i => i.date)
-      const skipped = result?.skipped || []
+      const inserted = new Set((result?.inserted || []).map(i => i.date))
+      const skipped = new Set(result?.skipped || [])
 
-      if (inserted.length) showToast(`已添加：${inserted.join(', ')}`, 'info')
-      if (skipped.length) showToast(`已存在（跳过）：${skipped.join(', ')}`, 'info')
+      const insertedDates = newDates.filter(d => inserted.has(d))
+      const skippedDates = newDates.filter(d => skipped.has(d) || (existingDates.has(d) && !inserted.has(d)))
+      const missingDates = newDates.filter(d => !inserted.has(d) && !skippedDates.includes(d))
 
-      form.reset()
-      await render(true)
+      if (insertedDates.length) showToast(`已添加：${insertedDates.join(', ')}`, 'info')
+      if (skippedDates.length) showToast(`已存在（跳过）：${skippedDates.join(', ')}`, 'info')
+      if (missingDates.length) showToast(`以下日期未处理：${missingDates.join(', ')}`, 'error')
+
+      if (insertedDates.length || missingDates.length) {
+        await render(true)
+      }
+
+      if (insertedDates.length) form.reset()
 
       // 高亮并滚动到第一个新增记录
-      if (inserted.length) {
-        const firstDate = inserted[0]
+      if (insertedDates.length) {
+        const firstDate = insertedDates[0]
         const el = document.querySelector(`.calendar-day[data-date="${firstDate}"]`)
         if (el) {
           el.classList.add('highlight')

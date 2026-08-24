@@ -20,7 +20,8 @@ export function normalizeDateString(s){
   s = String(s).trim()
   // attempt digits-only like 20250101
   const digits = s.replace(/[^0-9]/g, '')
-  if(digits.length === 8){
+  // 要求原始输入就是纯 8 位数字，避免 "202511111" 这类多一位输入被静默截断
+  if(digits.length === 8 && s.length === 8){
     const y = Number(digits.slice(0,4))
     const m = Number(digits.slice(4,6))
     const d = Number(digits.slice(6,8))
