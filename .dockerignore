@@ -1,12 +1,13 @@
 node_modules
-dist/
+.git
 data/
+dist/
 .env
 *.sqlite
 *.db
 *.db-shm
 *.db-wal
 *.lock
-claude_code_env.sh
-CLAUDE.md
-README.md
+issues/
+docs/
+.claude/

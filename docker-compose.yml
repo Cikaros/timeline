@@ -5,7 +5,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - ./data.sqlite:/app/data.sqlite
+      - ./data:/app/data
     restart: unless-stopped
     environment:
       - NODE_ENV=production

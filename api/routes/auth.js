@@ -1,25 +1,17 @@
 import { authController } from '../controllers/auth.controller.js'
-import { requireAuth } from '../middleware/auth.js'
-import { errorResponse } from '../utils/response.js'
-import { getCorsHeaders } from '../middleware/cors.js'
+import { withAuth } from '../middleware/auth.js'
 
-export function authRoutes(req) {
-  const url = new URL(req.url)
-  const path = url.pathname
-
-  if (path === '/api/login' && req.method === 'POST') {
+export function authRoutes(req, { method, pathname }) {
+  if (pathname === '/api/login' && method === 'POST') {
     return authController.login(req)
   }
 
-  if (path === '/api/logout' && req.method === 'POST') {
+  if (pathname === '/api/logout' && method === 'POST') {
     return authController.logout(req)
   }
 
-  if (path === '/api/password' && req.method === 'POST') {
-    if (!requireAuth(req)) {
-      return errorResponse('未授权', 401, getCorsHeaders(req))
-    }
-    return authController.changePassword(req)
+  if (pathname === '/api/password' && method === 'POST') {
+    return withAuth(authController.changePassword)(req)
   }
 
   return null

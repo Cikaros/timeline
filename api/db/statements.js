@@ -9,6 +9,7 @@ export const statements = {
   getSession: 'SELECT expires FROM sessions WHERE token = ?',
   deleteSession: 'DELETE FROM sessions WHERE token = ?',
   deleteAllSessions: 'DELETE FROM sessions',
+  deleteAllSessionsExcept: 'DELETE FROM sessions WHERE token != ?',
   cleanupExpiredSessions: 'DELETE FROM sessions WHERE expires < ?',
 
   // 见面相关
@@ -17,6 +18,5 @@ export const statements = {
   getMeetingByDate: 'SELECT id FROM meetings WHERE date = ?',
   insertMeeting: 'INSERT INTO meetings (date, note) VALUES (?, ?)',
   updateMeetingNote: 'UPDATE meetings SET note = ? WHERE id = ?',
-  deleteMeeting: 'DELETE FROM meetings WHERE id = ?',
-  clearAllMeetings: 'DELETE FROM meetings'
+  deleteMeeting: 'DELETE FROM meetings WHERE id = ?'
 }

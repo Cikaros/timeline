@@ -12,7 +12,6 @@ FROM oven/bun:latest
 WORKDIR /app
 COPY --from=builder /build/web/dist/. ./
 COPY api ./api
-COPY --from=builder /build/api/utils ./api/utils
 COPY package.json ./
 RUN bun i --production
 EXPOSE 3000

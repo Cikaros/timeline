@@ -4,16 +4,15 @@ import {
   getMeetings,
   insertMeetings,
   updateMeetingNote,
-  deleteMeeting,
-  clearAllMeetings
+  deleteMeeting
 } from '../services/meetings.service.js'
+import { createMeetingsSchema, updateNoteSchema } from '../validators/meetings.validator.js'
 
 export const meetingsController = {
-  getMeetings(req) {
+  getMeetings(req, searchParams) {
     const corsHeaders = getCorsHeaders(req)
-    const url = new URL(req.url)
-    const limit = Math.min(Number(url.searchParams.get('limit')) || 1000, 10000)
-    const offset = Number(url.searchParams.get('offset')) || 0
+    const limit = Math.min(Number(searchParams.get('limit')) || 1000, 10000)
+    const offset = Math.max(Number(searchParams.get('offset')) || 0, 0)
 
     const result = getMeetings(limit, offset)
     return jsonResponse(result, 200, corsHeaders)
@@ -22,35 +21,42 @@ export const meetingsController = {
   async insertMeetings(req) {
     const corsHeaders = getCorsHeaders(req)
     const body = await req.json().catch(() => ({}))
-    const input = body.input || body.date || ''
-    const note = body.note?.trim() || ''
+    const result = createMeetingsSchema.safeParse(body)
+    if (!result.success) {
+      return errorResponse(result.error.issues[0].message, 400, corsHeaders)
+    }
 
-    const result = insertMeetings(input, note)
-    if (result.inserted.length === 0 && result.skipped.length === 0) {
+    const { input, date, note } = result.data
+    const payload = input || date || ''
+    const insertResult = insertMeetings(payload, note?.trim() || '')
+    if (insertResult.inserted.length === 0 && insertResult.skipped.length === 0) {
       return errorResponse('未解析到有效日期', 400, corsHeaders)
     }
 
-    return jsonResponse(result, 200, corsHeaders)
+    return jsonResponse(insertResult, 200, corsHeaders)
   },
 
   async updateNote(req, id) {
     const corsHeaders = getCorsHeaders(req)
     const body = await req.json().catch(() => ({}))
-    const note = body.note?.trim() || ''
+    const result = updateNoteSchema.safeParse(body)
+    if (!result.success) {
+      return errorResponse(result.error.issues[0].message, 400, corsHeaders)
+    }
 
-    updateMeetingNote(id, note)
+    const changes = updateMeetingNote(id, result.data.note)
+    if (changes === 0) {
+      return errorResponse('记录不存在', 404, corsHeaders)
+    }
     return jsonResponse({ ok: true }, 200, corsHeaders)
   },
 
   deleteMeeting(req, id) {
     const corsHeaders = getCorsHeaders(req)
-    deleteMeeting(id)
+    const changes = deleteMeeting(id)
+    if (changes === 0) {
+      return errorResponse('记录不存在', 404, corsHeaders)
+    }
     return new Response(null, { status: 204, headers: corsHeaders })
-  },
-
-  clearAll(req) {
-    const corsHeaders = getCorsHeaders(req)
-    clearAllMeetings()
-    return jsonResponse({ ok: true }, 200, corsHeaders)
   }
 }

@@ -9,7 +9,9 @@
     "build": "vite build --config web/vite.config.js",
     "preview": "vite preview --config web/vite.config.js"
   },
-  "dependencies": {},
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
   "devDependencies": {
     "vite": "^5.0.0"
   }
