@@ -105,7 +105,14 @@ export function positionHeartToCount() {
   panel.style.setProperty('--heart-top', `${relY}px`)
   panel.style.setProperty('--heart-size', `${heartSize}px`)
 
-  // 心电图线：与心形同步搏动
+  // 心电图线：线段沿白色轨道从左至右单向流动，跟随波形切线（SVG animateMotion）
+  const ecgWidth = Math.round(heartSize * ECG_WAVE_RATIO)
+  const rawBeatDuration = getComputedStyle(document.documentElement)
+    .getPropertyValue('--heart-beat-duration') || '1s'
+  const beatSec = Math.max(RIPPLE_MIN_BEAT_SEC, parseFloat(rawBeatDuration)) || 1
+  const ecgDuration = beatSec * 2
+  const ECG_D = 'M0 32 H88 L96 32 L101 26 L106 32 H128 L134 38 L139 12 L144 50 L149 28 L154 32 H196 L203 25 L210 32 H300'
+
   let ecg = panel.querySelector('.ecg-line')
   if (!ecg) {
     ecg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
@@ -113,21 +120,16 @@ export function positionHeartToCount() {
     ecg.setAttribute('viewBox', '0 0 300 60')
     ecg.setAttribute('preserveAspectRatio', 'none')
     ecg.setAttribute('aria-hidden', 'true')
-    const ECG_D = 'M0 32 H88 L96 32 L101 26 L106 32 H128 L134 38 L139 12 L144 50 L149 28 L154 32 H196 L203 25 L210 32 H300'
     ecg.innerHTML =
       `<path class="ecg-base" fill="none" d="${ECG_D}"></path>` +
-      `<path class="ecg-glow" fill="none" stroke-linejoin="round" pathLength="1000" d="${ECG_D}"></path>` +
-      `<path class="ecg-core" fill="none" stroke-linejoin="round" pathLength="1000" d="${ECG_D}"></path>`
+      `<line class="ecg-seg ecg-seg-glow" x1="-12" y1="0" x2="12" y2="0"><animateMotion dur="${ecgDuration}s" repeatCount="indefinite" path="${ECG_D}" rotate="auto"/></line>` +
+      `<line class="ecg-seg" x1="-12" y1="0" x2="12" y2="0"><animateMotion dur="${ecgDuration}s" repeatCount="indefinite" path="${ECG_D}" rotate="auto"/></line>`
     panel.appendChild(ecg)
+  } else {
+    ecg.querySelectorAll('animateMotion').forEach(a => a.setAttribute('dur', `${ecgDuration}s`))
   }
 
-  const ecgWidth = Math.round(heartSize * ECG_WAVE_RATIO)
-  const rawBeatDuration = getComputedStyle(document.documentElement)
-    .getPropertyValue('--heart-beat-duration') || '1s'
-  const beatSec = Math.max(RIPPLE_MIN_BEAT_SEC, parseFloat(rawBeatDuration)) || 1
-  const ecgDuration = beatSec
   ecg.style.setProperty('--ecg-dur', `${ecgDuration}s`)
-  ecg.style.setProperty('--ecg-trail', `${(ECG_TRAIL_SPAN * ecgDuration).toFixed(3)}s`)
   ecg.style.left = `${relX}px`
   ecg.style.top = `${relY}px`
   ecg.style.width = `${ecgWidth}px`

@@ -80,6 +80,20 @@ export function renderCalendar(onDateClick, signal) {
   left.appendChild(yearSel)
   left.appendChild(monthSel)
   header.appendChild(left)
+
+  // 回到今天快捷按钮
+  const isTodayMonth = appState.calYear === nowYear && appState.calMonth === nowMonth
+  const todayBtn = document.createElement('button')
+  todayBtn.type = 'button'
+  todayBtn.className = 'btn ghost'
+  todayBtn.textContent = '今天'
+  todayBtn.disabled = isTodayMonth
+  todayBtn.title = isTodayMonth ? '当前即本月' : '回到今天'
+  todayBtn.addEventListener('click', () => {
+    dispatchCalendarChange(nowYear, nowMonth)
+  }, { signal })
+  header.appendChild(todayBtn)
+
   calendarEl.appendChild(header)
 
   // 日历表格

@@ -243,6 +243,10 @@ function bindEvents(signal) {
       showToast(`下列日期已存在，将被跳过：\n${duplicateDates.join(', ')}`, 'info')
     }
 
+    const submitBtn = form.querySelector('button[type="submit"]')
+    const submitText = submitBtn.textContent
+    submitBtn.disabled = true
+    submitBtn.textContent = '添加中...'
     try {
       const result = await meetingsAPI.create(newDates.join(','), note)
       const inserted = new Set((result?.inserted || []).map(i => i.date))
@@ -279,6 +283,9 @@ function bindEvents(signal) {
         showToast('添加失败', 'error')
         console.error(err)
       }
+    } finally {
+      submitBtn.disabled = false
+      submitBtn.textContent = submitText
     }
   })
 
@@ -354,8 +361,10 @@ function bindEvents(signal) {
     render(false) // 不重新加载数据，仅重新渲染日历
   }, { signal })
 
+  let resizeTimer = null
   window.addEventListener('resize', () => {
-    setTimeout(positionHeartToCount, 100)
+    if (resizeTimer) clearTimeout(resizeTimer)
+    resizeTimer = setTimeout(positionHeartToCount, 150)
   }, { signal })
 }
 
