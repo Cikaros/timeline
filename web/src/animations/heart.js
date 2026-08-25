@@ -131,7 +131,7 @@ export function positionHeartToCount() {
 
   ecg.style.setProperty('--ecg-dur', `${ecgDuration}s`)
   ecg.style.left = `${relX}px`
-  ecg.style.top = `${relY}px`
+  ecg.style.top = `${relY - 15}px`
   ecg.style.width = `${ecgWidth}px`
   ecg.style.height = `${Math.round(ecgWidth / 5)}px`
   // 生成涟漪环

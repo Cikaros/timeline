@@ -10,7 +10,7 @@ RUN bun i && cd web && bun run build
 # Stage 2: runtime using Bun
 FROM oven/bun:latest
 WORKDIR /app
-COPY --from=builder /build/web/dist/. ./
+COPY --from=builder /build/dist/. ./dist/
 COPY api ./api
 COPY package.json ./
 RUN bun i --production
