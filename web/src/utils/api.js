@@ -1,14 +1,15 @@
-// src/utils/api.js
 import { API_ROOT } from './constants.js'
 
 const REQUEST_TIMEOUT = 10000
 
-/**
- * 统一API请求封装
- * @param {string} path - API路径
- * @param {object} opts - fetch选项
- * @returns {Promise<Response>}
- */
+export class ApiError extends Error {
+  constructor(message, status) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+  }
+}
+
 async function apiFetch(path, opts = {}) {
   const { skipAuthCheck, ...fetchOpts } = opts
   const headers = Object.assign(
@@ -29,17 +30,24 @@ async function apiFetch(path, opts = {}) {
     const response = await fetch(`${API_ROOT}${path}`, options)
 
     if (response.status === 401 && !skipAuthCheck) {
-      throw new Error('unauthorized')
+      throw new ApiError('unauthorized', 401)
     }
 
     if (!response.ok) {
-      throw new Error(`请求失败: ${response.status}`)
+      let message = `请求失败: ${response.status}`
+      try {
+        const body = await response.clone().json()
+        if (body?.error) message = body.error
+      } catch (e) {
+        // Keep the generic status message when the body is not JSON.
+      }
+      throw new ApiError(message, response.status)
     }
 
     return response
   } catch (err) {
     if (err.name === 'AbortError') {
-      throw new Error('请求超时，请稍后重试')
+      throw new ApiError('请求超时，请稍后重试', 408)
     }
     throw err
   } finally {
@@ -47,49 +55,77 @@ async function apiFetch(path, opts = {}) {
   }
 }
 
-// 会议相关API
 export const meetingsAPI = {
-  getAll: (limit = 1000, offset = 0) =>
-    apiFetch(`/api/meetings?limit=${limit}&offset=${offset}`).then(res => res.json()),
+  async getAll(pageSize = 1000) {
+    const rows = []
+    let offset = 0
+    let total = 0
 
-  create: (input, note) =>
-    apiFetch('/api/meetings', {
+    while (true) {
+      const params = new URLSearchParams({
+        limit: String(pageSize),
+        offset: String(offset)
+      })
+      const response = await apiFetch(`/api/meetings?${params}`)
+      const data = await response.json()
+      const pageRows = data.rows || []
+
+      rows.push(...pageRows)
+      total = data.total || 0
+
+      if (rows.length >= total || pageRows.length < pageSize) break
+      offset += pageSize
+    }
+
+    return { rows, total }
+  },
+
+  async create(input, note) {
+    const response = await apiFetch('/api/meetings', {
       method: 'POST',
       body: JSON.stringify({ input, note })
-    }).then(res => res.json()),
+    })
+    return response.json()
+  },
 
-  updateNote: (id, note) =>
-    apiFetch(`/api/meetings/${id}`, {
+  async updateNote(id, note) {
+    const response = await apiFetch(`/api/meetings/${id}`, {
       method: 'POST',
       body: JSON.stringify({ note })
-    }).then(res => res.json()),
-
-  delete: (id) =>
-    apiFetch(`/api/meetings/${id}`, { method: 'DELETE' }).then(res => {
-      // 204 No Content has no body
-      if (res.status === 204) return { ok: true }
-      return res.json()
     })
+    return response.json()
+  },
+
+  async delete(id) {
+    const response = await apiFetch(`/api/meetings/${id}`, { method: 'DELETE' })
+    if (response.status === 204) return { ok: true }
+    return response.json()
+  }
 }
 
-// 设置相关API
 export const settingsAPI = {
-  get: () => apiFetch('/api/settings').then(res => res.json()),
-  
-  setFirstMeeting: (date) =>
-    apiFetch('/api/first-meeting', {
+  async get() {
+    const response = await apiFetch('/api/settings')
+    return response.json()
+  },
+
+  async setFirstMeeting(date) {
+    const response = await apiFetch('/api/first-meeting', {
       method: 'POST',
       body: JSON.stringify({ date })
-    }).then(res => res.json()),
+    })
+    return response.json()
+  },
 
-  changePassword: (oldPassword, newPassword) =>
-    apiFetch('/api/password', {
+  async changePassword(oldPassword, newPassword) {
+    const response = await apiFetch('/api/password', {
       method: 'POST',
       body: JSON.stringify({ oldPassword, newPassword })
-    }).then(res => res.json())
+    })
+    return response.json()
+  }
 }
 
-// 认证相关API
 export const authAPI = {
   login: (password) =>
     apiFetch('/api/login', {

@@ -7,7 +7,11 @@ import { normalizeDateString } from '../utils/dateParser.js'
  */
 export function getSettings() {
   const firstMeeting = preparedStatements.getSetting.get('first_meeting')?.value
-  return { first_meeting: firstMeeting || null }
+  const usesDefaultPassword = preparedStatements.getSetting.get('password_is_default')?.value === '1'
+  return {
+    first_meeting: firstMeeting || null,
+    must_change_password: usesDefaultPassword
+  }
 }
 
 /**

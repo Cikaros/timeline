@@ -1,0 +1,265 @@
+[
+  {
+    "ts": "2026-09-02T10:34:44.282Z",
+    "hook": "post_tool_use",
+    "trigger": "PostToolUse",
+    "duration_ms": 0,
+    "result": "success",
+    "detail": {
+      "tool": "Bash",
+      "sensitive_high": 0,
+      "sensitive_low": 0,
+      "response_chars": 1509
+    }
+  },
+  {
+    "ts": "2026-09-02T10:34:50.201Z",
+    "hook": "pre_tool_use",
+    "trigger": "PreToolUse",
+    "duration_ms": 1,
+    "result": "allowed",
+    "detail": {
+      "tool": "Bash",
+      "blacklist_size": 10,
+      "whitelist_size": 1
+    }
+  },
+  {
+    "ts": "2026-09-02T10:34:50.355Z",
+    "hook": "post_tool_use",
+    "trigger": "PostToolUse",
+    "duration_ms": 1,
+    "result": "success",
+    "detail": {
+      "tool": "Bash",
+      "sensitive_high": 0,
+      "sensitive_low": 0,
+      "response_chars": 0
+    }
+  },
+  {
+    "ts": "2026-09-02T10:34:58.627Z",
+    "hook": "pre_tool_use",
+    "trigger": "PreToolUse",
+    "duration_ms": 0,
+    "result": "allowed",
+    "detail": {
+      "tool": "Bash",
+      "blacklist_size": 10,
+      "whitelist_size": 1
+    }
+  },
+  {
+    "ts": "2026-09-02T10:34:58.738Z",
+    "hook": "post_tool_use",
+    "trigger": "PostToolUse",
+    "duration_ms": 1,
+    "result": "success",
+    "detail": {
+      "tool": "Bash",
+      "sensitive_high": 0,
+      "sensitive_low": 0,
+      "response_chars": 833
+    }
+  },
+  {
+    "ts": "2026-09-02T10:35:07.566Z",
+    "hook": "pre_tool_use",
+    "trigger": "PreToolUse",
+    "duration_ms": 0,
+    "result": "allowed",
+    "detail": {
+      "tool": "Bash",
+      "blacklist_size": 10,
+      "whitelist_size": 1
+    }
+  },
+  {
+    "ts": "2026-09-02T10:35:07.699Z",
+    "hook": "post_tool_use",
+    "trigger": "PostToolUse",
+    "duration_ms": 1,
+    "result": "success",
+    "detail": {
+      "tool": "Bash",
+      "sensitive_high": 0,
+      "sensitive_low": 0,
+      "response_chars": 0
+    }
+  },
+  {
+    "ts": "2026-09-02T10:35:16.733Z",
+    "hook": "pre_tool_use",
+    "trigger": "PreToolUse",
+    "duration_ms": 1,
+    "result": "allowed",
+    "detail": {
+      "tool": "Bash",
+      "blacklist_size": 10,
+      "whitelist_size": 1
+    }
+  },
+  {
+    "ts": "2026-09-02T10:35:16.868Z",
+    "hook": "post_tool_use",
+    "trigger": "PostToolUse",
+    "duration_ms": 1,
+    "result": "success",
+    "detail": {
+      "tool": "Bash",
+      "sensitive_high": 0,
+      "sensitive_low": 0,
+      "response_chars": 0
+    }
+  },
+  {
+    "ts": "2026-09-02T10:36:17.112Z",
+    "hook": "stop",
+    "trigger": "Stop",
+    "duration_ms": 113,
+    "result": "success",
+    "detail": {
+      "todo_refreshed": true,
+      "turn_id": "01a06196-1bde-7412-b96b-1a02034991a7"
+    }
+  },
+  {
+    "ts": "2026-09-02T10:50:22.135Z",
+    "hook": "session_start",
+    "trigger": "SessionStart",
+    "duration_ms": 1649,
+    "result": "success",
+    "detail": {
+      "steps": 4,
+      "config_keys": 10,
+      "markers": 0,
+      "stage": "req-analysis"
+    }
+  },
+  {
+    "ts": "2026-09-02T10:50:22.176Z",
+    "hook": "user_prompt_submit",
+    "trigger": "UserPromptSubmit",
+    "duration_ms": 1,
+    "result": "success",
+    "detail": {
+      "stage": null,
+      "injected": false
+    }
+  },
+  {
+    "ts": "2026-09-02T10:50:27.599Z",
+    "hook": "pre_tool_use",
+    "trigger": "PreToolUse",
+    "duration_ms": 0,
+    "result": "allowed",
+    "detail": {
+      "tool": "Bash",
+      "blacklist_size": 10,
+      "whitelist_size": 1,
+      "denied_targets": []
+    }
+  },
+  {
+    "ts": "2026-09-02T10:50:27.782Z",
+    "hook": "post_tool_use",
+    "trigger": "PostToolUse",
+    "duration_ms": 1,
+    "result": "success",
+    "detail": {
+      "tool": "Bash",
+      "sensitive_high": 0,
+      "sensitive_low": 0,
+      "response_chars": 153
+    }
+  },
+  {
+    "ts": "2026-09-02T10:50:30.242Z",
+    "hook": "pre_tool_use",
+    "trigger": "PreToolUse",
+    "duration_ms": 0,
+    "result": "allowed",
+    "detail": {
+      "tool": "Bash",
+      "blacklist_size": 10,
+      "whitelist_size": 1,
+      "denied_targets": []
+    }
+  },
+  {
+    "ts": "2026-09-02T10:50:30.345Z",
+    "hook": "post_tool_use",
+    "trigger": "PostToolUse",
+    "duration_ms": 1,
+    "result": "success",
+    "detail": {
+      "tool": "Bash",
+      "sensitive_high": 0,
+      "sensitive_low": 0,
+      "response_chars": 35
+    }
+  },
+  {
+    "ts": "2026-09-02T10:50:34.862Z",
+    "hook": "pre_tool_use",
+    "trigger": "PreToolUse",
+    "duration_ms": 0,
+    "result": "allowed",
+    "detail": {
+      "tool": "Bash",
+      "blacklist_size": 10,
+      "whitelist_size": 1,
+      "denied_targets": []
+    }
+  },
+  {
+    "ts": "2026-09-02T10:50:50.543Z",
+    "hook": "post_tool_use",
+    "trigger": "PostToolUse",
+    "duration_ms": 0,
+    "result": "success",
+    "detail": {
+      "tool": "Bash",
+      "sensitive_high": 0,
+      "sensitive_low": 0,
+      "response_chars": 0
+    }
+  },
+  {
+    "ts": "2026-09-02T10:50:52.774Z",
+    "hook": "pre_tool_use",
+    "trigger": "PreToolUse",
+    "duration_ms": 1,
+    "result": "allowed",
+    "detail": {
+      "tool": "Bash",
+      "blacklist_size": 10,
+      "whitelist_size": 1,
+      "denied_targets": []
+    }
+  },
+  {
+    "ts": "2026-09-02T10:50:52.928Z",
+    "hook": "post_tool_use",
+    "trigger": "PostToolUse",
+    "duration_ms": 1,
+    "result": "success",
+    "detail": {
+      "tool": "Bash",
+      "sensitive_high": 0,
+      "sensitive_low": 0,
+      "response_chars": 0
+    }
+  },
+  {
+    "ts": "2026-09-02T10:50:56.479Z",
+    "hook": "stop",
+    "trigger": "Stop",
+    "duration_ms": 100,
+    "result": "success",
+    "detail": {
+      "todo_refreshed": true,
+      "turn_id": "01a061bd-bf49-79f0-ac66-13056088e554"
+    }
+  }
+]

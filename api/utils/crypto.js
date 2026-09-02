@@ -1,3 +1,5 @@
+import { createHash, timingSafeEqual } from 'node:crypto'
+
 /**
  * 密码哈希与验证（使用 bcrypt）
  * 兼容旧版 SHA-256 哈希，验证成功后自动升级
@@ -45,6 +47,17 @@ async function verifySHA256(password, storedHash) {
   const hashBuffer = await crypto.subtle.digest('SHA-256', data)
   const hashArray = Array.from(new Uint8Array(hashBuffer))
   const inputHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
-  // 旧格式用普通比较（迁移后不再使用）
-  return inputHash === hash
+  // Use a constant-time comparison for the legacy format.
+  if (hash.length !== 64) return false
+  const actual = Buffer.from(inputHash, 'hex')
+  const expected = Buffer.from(hash, 'hex')
+  return actual.length === expected.length && timingSafeEqual(actual, expected)
+}
+
+/**
+ * Hash a session token before storing or querying it.
+ * The browser keeps the raw token, while the database only stores this digest.
+ */
+export function hashSessionToken(token) {
+  return createHash('sha256').update(token).digest('hex')
 }

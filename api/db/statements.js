@@ -8,6 +8,7 @@ export const statements = {
   createSession: 'INSERT INTO sessions (token, expires) VALUES (?, ?)',
   getSession: 'SELECT expires FROM sessions WHERE token = ?',
   deleteSession: 'DELETE FROM sessions WHERE token = ?',
+  deleteAllSessions: 'DELETE FROM sessions',
   deleteAllSessionsExcept: 'DELETE FROM sessions WHERE token != ?',
   cleanupExpiredSessions: 'DELETE FROM sessions WHERE expires < ?',
 

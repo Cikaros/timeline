@@ -1,0 +1,14 @@
+{
+  "session_id": "01a061bd-489c-70b1-bab7-397c74e33ac2",
+  "session_started_at": "2026-09-02T10:50:22.134Z",
+  "last_trigger": "stop",
+  "source": "startup",
+  "current_stage": "req-analysis",
+  "current_lang": "typescript",
+  "project_root": "/Users/cikaros/Code/timeline",
+  "plugin_root": "/Users/cikaros/.codex/plugins/cache/specflow/specflow/0.7.0",
+  "injected_files": [
+    "templates/coding/typescript/spec.md"
+  ],
+  "hooks_executed": 3
+}

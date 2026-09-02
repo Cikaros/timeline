@@ -1,0 +1,23 @@
+{
+  "scanned_at": "2026-09-02T18:50:56+08:00",
+  "project_root": "/Users/cikaros/Code/timeline",
+  "next_id": {
+    "TODO": 1,
+    "FIXME": 1
+  },
+  "markers": [],
+  "by_agent": {},
+  "summary": {
+    "total": 0,
+    "created": 0,
+    "resolved": 0,
+    "deleted": 0
+  },
+  "warnings": [],
+  "errors": [],
+  "cache": {
+    "files": 56,
+    "cache_hits": 56
+  },
+  "resolved_transitions": []
+}

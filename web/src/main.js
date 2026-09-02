@@ -19,7 +19,7 @@ function daysBetween(a, b) {
       const [y, mo, da] = x.split('T')[0].split('-').map(Number)
       return Date.UTC(y, (mo || 1) - 1, da || 1)
     }
-    return Date.UTC(x.getFullYear(), x.getMonth(), x.getDate())
+    return Date.UTC(x.getUTCFullYear(), x.getUTCMonth(), x.getUTCDate())
   }
 
   const ONE_DAY = 24 * 60 * 60 * 1000
@@ -29,29 +29,25 @@ function daysBetween(a, b) {
 /**
  * 渲染应用
  */
-async function render(reload = true) {
+async function render(reload = true, preloadedSettings = null) {
   try {
     if (reload) {
-      // 加载会议数据
-      const meetingsData = await meetingsAPI.getAll()
+      const [meetingsData, settings] = await Promise.all([
+        meetingsAPI.getAll(),
+        preloadedSettings ?? settingsAPI.get()
+      ])
+
       const meetings = (meetingsData.rows || []).map(m => ({
         ...m,
         date: m.date.split('T')[0]
-      })).sort((a, b) => new Date(b.date) - new Date(a.date))
+      })).sort((a, b) => b.date.localeCompare(a.date))
 
-      // 加载设置（首次见面日期）
-      let firstMeetingDate = null
-      try {
-        const settings = await settingsAPI.get()
-        firstMeetingDate = settings.first_meeting
-      } catch (e) {
-        // 如果没有设置，从最早的会议记录推断
-        if (meetings.length) {
-          const sortedDates = meetings
-            .map(m => new Date(Date.UTC(...m.date.split('-').map(Number))))
-            .sort((a, b) => a - b)
-          firstMeetingDate = formatDateObj(sortedDates[0])
-        }
+      let firstMeetingDate = settings.first_meeting
+      if (!firstMeetingDate && meetings.length) {
+        firstMeetingDate = meetings.reduce(
+          (min, m) => (m.date < min ? m.date : min),
+          meetings[0].date
+        )
       }
 
       const firstMeetingYear = firstMeetingDate ? Number(firstMeetingDate.split('-')[0]) : null
@@ -110,7 +106,7 @@ async function render(reload = true) {
     // 延迟定位心形（等待布局完成）
     setTimeout(positionHeartToCount, HEART_POSITION_DELAY)
   } catch (e) {
-    if (String(e).includes('unauthorized')) {
+    if (e?.status === 401) {
       showLogin(() => createApp())
     } else {
       console.error('渲染失败:', e)
@@ -122,17 +118,65 @@ async function render(reload = true) {
 // 事件监听器管理
 let abortController = null
 
+async function changeRequiredPassword() {
+  while (true) {
+    const values = await showMultiPrompt({
+      title: '请先修改默认密码',
+      fields: [
+        { label: '当前密码', type: 'password', placeholder: '请输入当前密码' },
+        { label: '新密码', type: 'password', placeholder: '至少6个字符' },
+        { label: '确认新密码', type: 'password', placeholder: '再次输入新密码' }
+      ]
+    })
+
+    if (!values) {
+      try {
+        await authAPI['logout']()
+      } catch (e) {
+        // The session will expire naturally if logout fails.
+      }
+      return false
+    }
+
+    const [currentPassword, newPassword, confirmPassword] = values
+    if (!currentPassword || !newPassword || newPassword.length < 6) {
+      await showAlert('请输入当前密码，且新密码至少需要6个字符')
+      continue
+    }
+    if (newPassword !== confirmPassword) {
+      await showAlert('两次输入的新密码不一致')
+      continue
+    }
+
+    try {
+      await settingsAPI.changePassword(currentPassword, newPassword)
+      showToast('密码已修改')
+      return true
+    } catch (err) {
+      await showAlert(err.message || '修改失败，请重试')
+    }
+  }
+}
+
 /**
  * 创建应用主界面
  */
 async function createApp() {
   const root = document.getElementById('app')
 
-  // 验证登录状态
+  // 验证登录状态，并复用这次设置请求，避免启动时重复请求
+  let initialSettings = null
   try {
-    await settingsAPI.get()
+    initialSettings = await settingsAPI.get()
+    if (initialSettings.must_change_password) {
+      const changed = await changeRequiredPassword()
+      if (!changed) return showLogin(() => createApp())
+      initialSettings = await settingsAPI.get()
+    }
   } catch (e) {
-    return showLogin(() => createApp())
+    if (e?.status === 401) return showLogin(() => createApp())
+    showToast('初始化失败', 'error')
+    return
   }
 
   // 渲染主界面
@@ -199,7 +243,7 @@ async function createApp() {
   bindEvents(signal)
 
   // 初始渲染
-  await render()
+  await render(true, initialSettings)
 }
 
 /**
@@ -277,10 +321,10 @@ function bindEvents(signal) {
         }
       }
     } catch (err) {
-      if (String(err).includes('unauthorized')) {
+      if (err?.status === 401) {
         showLogin(() => createApp())
       } else {
-        showToast('添加失败', 'error')
+        showToast(err.message || '添加失败', 'error')
         console.error(err)
       }
     } finally {
@@ -308,10 +352,10 @@ function bindEvents(signal) {
       await showAlert('设置成功')
       await render(true)
     } catch (err) {
-      if (String(err).includes('unauthorized')) {
+      if (err?.status === 401) {
         showLogin(() => createApp())
       } else {
-        await showAlert('设置失败')
+        await showAlert(err.message || '设置失败')
       }
     }
   })
@@ -334,10 +378,10 @@ function bindEvents(signal) {
       showToast('密码已修改')
       await render(true)
     } catch (err) {
-      if (String(err).includes('unauthorized')) {
+      if (err?.status === 401) {
         showLogin(() => createApp())
       } else {
-        showToast('修改失败：' + (err.message || '请检查当前密码是否正确'), 'error')
+        showToast(err.message || '修改失败：请检查当前密码是否正确', 'error')
       }
     }
   })

@@ -1,27 +1,20 @@
 /**
- * 统一JSON响应工具
- * @param {any} body 响应体
- * @param {number} status 状态码
- * @param {object} corsHeaders CORS头
- * @returns {Response}
+ * Unified JSON response helpers.
  */
-export function jsonResponse(body, status = 200, corsHeaders = {}) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      'Content-Type': 'application/json',
-      ...corsHeaders
-    }
+export function jsonResponse(body, status = 200, corsHeaders = {}, extraHeaders = {}) {
+  const headers = new Headers({
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-store',
+    ...corsHeaders
   })
+
+  for (const [key, value] of Object.entries(extraHeaders)) {
+    headers.append(key, value)
+  }
+
+  return new Response(JSON.stringify(body), { status, headers })
 }
 
-/**
- * 错误响应
- * @param {string} message 错误信息
- * @param {number} status 状态码
- * @param {object} corsHeaders CORS头
- * @returns {Response}
- */
 export function errorResponse(message, status = 400, corsHeaders = {}) {
   return jsonResponse({ error: message }, status, corsHeaders)
 }

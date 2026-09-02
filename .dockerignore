@@ -7,7 +7,6 @@ dist/
 *.db
 *.db-shm
 *.db-wal
-*.lock
 issues/
 docs/
 .claude/

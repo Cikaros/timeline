@@ -1,5 +1,6 @@
 import { getCorsHeaders } from '../middleware/cors.js'
 import { jsonResponse, errorResponse } from '../utils/response.js'
+import { parsePagination } from '../utils/pagination.js'
 import {
   getMeetings,
   insertMeetings,
@@ -11,9 +12,7 @@ import { createMeetingsSchema, updateNoteSchema } from '../validators/meetings.v
 export const meetingsController = {
   getMeetings(req, searchParams) {
     const corsHeaders = getCorsHeaders(req)
-    const limit = Math.min(Number(searchParams.get('limit')) || 1000, 10000)
-    const offset = Math.max(Number(searchParams.get('offset')) || 0, 0)
-
+    const { limit, offset } = parsePagination(searchParams)
     const result = getMeetings(limit, offset)
     return jsonResponse(result, 200, corsHeaders)
   },

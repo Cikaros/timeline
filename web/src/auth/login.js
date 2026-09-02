@@ -28,17 +28,22 @@ export function showLogin(onSuccess) {
 
   const handleLogin = async () => {
     const password = passEl.value.trim()
-    if (!password) return
+    if (!password || loginBtn.disabled) return
 
+    loginBtn.disabled = true
+    loginBtn.textContent = '登录中...'
     try {
-      const response = await authAPI.login(password)
+      const response = await authAPI['login'](password)
       if (response.ok) {
         onSuccess()
       } else {
         showToast('密码错误', 'error')
       }
     } catch (err) {
-      showToast('登录出错', 'error')
+      showToast(err.message || '登录出错', 'error')
+    } finally {
+      loginBtn.disabled = false
+      loginBtn.textContent = '登录'
     }
   }
 

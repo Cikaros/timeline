@@ -9,10 +9,11 @@ bun install                # Install dependencies
 bun run dev                # Frontend dev server (Vite, port 5174, proxies /api → :3000)
 bun run api                # Backend API server (Bun, port 3000)
 bun run build              # Build frontend to dist/
+bun test                   # Run unit tests
 docker compose build --no-cache && docker compose up -d  # Docker deployment
 ```
 
-Run `dev` and `api` simultaneously during development. No test or lint commands exist.
+Run `dev` and `api` simultaneously during development. No lint command exists.
 
 ## Runtime & Stack
 
@@ -58,15 +59,15 @@ Run `dev` and `api` simultaneously during development. No test or lint commands 
 
 - Commit messages are concise and in Chinese (e.g., `fix 日历样式 & 主题样式`).
 - Use `fix`, `feat`, or similar prefixes followed by a short description.
-- For PRs: include a description of changes, link to relevant issues in `issues/`, and note any migration changes.
+- For PRs: include a description of changes, link to relevant issues when available, and note any migration changes.
 
 ## Security & Known Issues
 
-See `@issues/01-code-audit.md` and `@issues/02-code-audit-r2.md`. Key open items:
-- No CSRF protection
-- Hardcoded default password (`REDACTED`) with no forced change
-- No login rate limiting
-- Docker container runs as root
+Key open items:
+- No explicit CSRF token; current mitigations are `SameSite=Lax`, JSON requests, and Origin validation
+- Docker container still runs as root
+- Login rate limiting is in-memory and resets on restart
+- No built-in database backup schedule
 
 ---
 

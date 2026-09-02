@@ -1,0 +1,12 @@
+# specflow 项目级黑名单（PreToolUse hook 按此拦截工具调用）
+*.pem
+*.key
+.env
+.env.*
+!.env.example
+**/secrets/**
+**/node_modules/**
+**/dist/**
+**/__pycache__/**
+*.log
+.DS_Store

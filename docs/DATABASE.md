@@ -29,7 +29,7 @@ PRAGMA busy_timeout = 5000;         // 数据库繁忙时等待 5 秒
 | `id` | INTEGER | PRIMARY KEY AUTOINCREMENT | 自增主键 |
 | `date` | TEXT | NOT NULL, UNIQUE | 见面日期（YYYY-MM-DD 格式） |
 | `note` | TEXT | | 备注信息 |
-| `created_at` | INTEGER | NOT NULL | 创建时间戳（秒） |
+| `created_at` | INTEGER | NOT NULL | 创建时间戳（毫秒） |
 
 ```sql
 CREATE TABLE IF NOT EXISTS meetings (
@@ -43,11 +43,17 @@ CREATE INDEX IF NOT EXISTS idx_meetings_date ON meetings(date);
 
 ### 2. settings（应用设置）
 
+除业务设置外，当前还包含：
+
+- `password_hash`：bcrypt 密码哈希
+- `password_is_default`：`1` 表示仍在使用默认密码，`0` 表示已修改
+
+
 | 字段 | 类型 | 约束 | 说明 |
 |------|------|------|------|
 | `key` | TEXT | PRIMARY KEY | 设置键名（如 `password_hash`） |
-| `value` | TEXT | NOT NULL | 设置值（加密后的字符串） |
-| `updated_at` | INTEGER | NOT NULL | 更新时间戳（秒） |
+| `value` | TEXT | NOT NULL | 设置值（密码存储为哈希） |
+| `updated_at` | INTEGER | NOT NULL | 更新时间戳（毫秒） |
 
 ```sql
 CREATE TABLE IF NOT EXISTS settings (
@@ -61,9 +67,9 @@ CREATE TABLE IF NOT EXISTS settings (
 
 | 字段 | 类型 | 约束 | 说明 |
 |------|------|------|------|
-| `token` | TEXT | PRIMARY KEY | UUID 格式会话标识 |
-| `expires` | INTEGER | NOT NULL | 过期时间戳（秒） |
-| `created_at` | INTEGER | NOT NULL | 创建时间戳（秒） |
+| `token` | TEXT | PRIMARY KEY | 原始 session token 的 SHA-256 摘要 |
+| `expires` | INTEGER | NOT NULL | 过期时间戳（毫秒） |
+| `created_at` | INTEGER | NOT NULL | 创建时间戳（毫秒） |
 
 ```sql
 CREATE TABLE IF NOT EXISTS sessions (
@@ -80,7 +86,7 @@ CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires);
 |------|------|------|------|
 | `version` | INTEGER | PRIMARY KEY | 迁移版本号（自增） |
 | `description` | TEXT | | 迁移描述 |
-| `applied_at` | INTEGER | NOT NULL | 执行时间戳（秒） |
+| `applied_at` | INTEGER | NOT NULL | 执行时间戳（毫秒） |
 
 ```sql
 CREATE TABLE IF NOT EXISTS _migrations (

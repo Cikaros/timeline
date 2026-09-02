@@ -1,6 +1,7 @@
 // src/calendar/render.js
 import { getState } from '../state.js'
 import { CALENDAR_DEBOUNCE } from '../utils/constants.js'
+import { formatDateObj } from '../utils/dateParser.js'
 
 /**
  * 渲染日历
@@ -21,7 +22,7 @@ export function renderCalendar(onDateClick, signal) {
   const dateSet = new Set(meetingMap.keys())
 
   const today = new Date()
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+  const todayStr = formatDateObj(today)
   const firstDayUtc = new Date(Date.UTC(appState.calYear, appState.calMonth, 1))
   const daysInMonth = new Date(Date.UTC(appState.calYear, appState.calMonth + 1, 0)).getUTCDate()
   // getUTCDay: 0=Sunday -> 7, 保持表头“一~日”的周一开头顺序
@@ -45,8 +46,8 @@ export function renderCalendar(onDateClick, signal) {
   // 年份选择器
   const yearSel = document.createElement('select')
   const monthSel = document.createElement('select')
-  const nowYear = today.getFullYear()
-  const nowMonth = today.getMonth()
+  const nowYear = today.getUTCFullYear()
+  const nowMonth = today.getUTCMonth()
   const minY = appState.firstMeetingYear || Math.max(nowYear - 5, appState.calYear - 3)
   const maxY = nowYear
 

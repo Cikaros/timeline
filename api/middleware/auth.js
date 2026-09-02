@@ -1,12 +1,8 @@
 import { preparedStatements } from '../db/index.js'
 import { getCorsHeaders } from './cors.js'
 import { errorResponse } from '../utils/response.js'
+import { hashSessionToken } from '../utils/crypto.js'
 
-/**
- * 解析Cookie
- * @param {string} cookieHeader Cookie头
- * @returns {object} 解析后的Cookie对象
- */
 export function parseCookies(cookieHeader) {
   if (!cookieHeader) return {}
   return cookieHeader.split(';')
@@ -20,44 +16,44 @@ export function parseCookies(cookieHeader) {
     }, {})
 }
 
-/**
- * 验证会话
- */
 export function verifySession(token) {
   if (!token) return false
 
-  const row = preparedStatements.getSession.get(token)
+  const tokenHash = hashSessionToken(token)
+  const row = preparedStatements.getSession.get(tokenHash)
   if (!row) return false
 
   if (Date.now() > row.expires) {
-    preparedStatements.deleteSession.run(token)
+    preparedStatements.deleteSession.run(tokenHash)
     return false
   }
-
   return true
 }
 
-/**
- * 身份验证中间件
- * @param {Request} req 请求对象
- * @returns {string|null} 验证通过返回token，否则返回null
- */
 export function requireAuth(req) {
   const cookies = parseCookies(req.headers.get('cookie') || '')
   const token = cookies['session']
   return verifySession(token) ? token : null
 }
 
-/**
- * 认证包装器：自动处理认证检查
- * @param {function} handler 受保护的路由处理器
- * @returns {function} 包装后的处理器
- */
+function usesDefaultPassword() {
+  return preparedStatements.getSetting.get('password_is_default')?.value === '1'
+}
+
 export function withAuth(handler) {
   return async (req, ...args) => {
     if (!requireAuth(req)) {
       return errorResponse('未授权', 401, getCorsHeaders(req))
     }
+
+    if (usesDefaultPassword()) {
+      const url = new URL(req.url)
+      const canReadSettings = url.pathname === '/api/settings' && req.method === 'GET'
+      if (url.pathname !== '/api/password' && !canReadSettings) {
+        return errorResponse('请先修改默认密码', 403, getCorsHeaders(req))
+      }
+    }
+
     return handler(req, ...args)
   }
 }

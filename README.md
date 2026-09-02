@@ -20,6 +20,9 @@ bun run dev
 
 # 启动后端 API (Bun, 端口 3000)
 bun run api
+
+# 运行测试
+bun test
 ```
 
 开发时需要同时运行 `dev` 和 `api`。Vite 会将 `/api` 请求代理到 `http://localhost:3000`。
@@ -46,9 +49,19 @@ docker compose up -d
 
 容器将宿主的 `data/timeline.db` 目录挂载到容器内以持久化数据库。
 
+### 常用环境变量
+
+| 变量 | 说明 |
+| --- | --- |
+| `PORT` | 后端端口，默认 `3000` |
+| `DB_PATH` | SQLite 数据库路径，默认 `./data/timeline.db` |
+| `SESSION_DURATION` | 会话有效期，单位毫秒，默认 24 小时 |
+| `DEFAULT_PASSWORD` | 首次初始化时使用的默认密码 |
+| `ALLOWED_ORIGINS` | 额外允许的跨域 Origin，多个值用英文逗号分隔 |
+
 ## 功能
 
-- 登录认证（默认密码: `REDACTED`，建议首次登录后修改）
+- 登录认证（默认密码: `REDACTED`，首次登录后强制修改）
 - 添加/删除见面记录
 - 支持日期范围和多项输入（如 `20250101~20250105` 或逗号分隔）
 - 日历视图查看历史记录，今日高亮
@@ -62,10 +75,11 @@ docker compose up -d
 
 ## API 接口
 
-认证: 所有接口（除 `login`）需要通过 session cookie 认证。
+认证: 数据接口需要通过 session cookie 认证；`health`、`login` 和 `logout` 除外。
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
+| GET | `/api/health` | 健康检查 |
 | POST | `/api/login` | 登录，设置 session cookie |
 | POST | `/api/logout` | 登出，清除 session |
 | GET | `/api/meetings` | 获取见面记录（需认证） |
@@ -76,7 +90,7 @@ docker compose up -d
 | POST | `/api/first-meeting` | 设置第一次见面日期（需认证） |
 | POST | `/api/password` | 修改密码（需认证） |
 
-**认证方式**：除登录接口外，所有接口需要在请求头中携带 `Cookie: session=xxx`（通过登录成功后自动设置 HttpOnly Cookie）。
+**认证方式**：受保护接口需要在请求头中携带 `Cookie: session=xxx`（通过登录成功后自动设置 HttpOnly Cookie）。
 
 ## 项目结构
 
@@ -122,8 +136,6 @@ timeline/
 │   │       ├── dateParser.js    # 日期解析 (与后端共享)
 │   │       └── ui.js            # Toast 通知
 │   └── vite.config.js
-├── issues/                 # 问题追踪
-│   └── 01-code-audit.md   # 代码审计报告
 ├── docs/                   # 文档
 ├── Dockerfile
 ├── docker-compose.yml
@@ -163,19 +175,20 @@ Schema 通过 `api/db/migrations.js` 版本化迁移管理，新增迁移需追�
 ## 安全
 
 - 密码: bcrypt（cost 12），自动升级旧版 SHA-256 哈希
+- 默认密码: 首次登录后强制修改
 - 会话: UUID token + HttpOnly Cookie（`SameSite=Lax`, 生产环境 `Secure`, 24h 有效期）
+- 会话存储: 数据库仅保存 token 的 SHA-256 摘要
 - 会话清理: 每 6 小时自动清除过期会话
-- 修改密码会注销所有会话（含当前会话，已知限制）
+- 登录限流: 15 分钟内 5 次失败后锁定 15 分钟
+- Origin 校验: 非同源且非白名单 Origin 的写请求返回 403
+- 修改密码: 旧 session 全部失效，并立即签发新 session
 
 ## 已知问题
 
-详见 `issues/01-code-audit.md`，主要未解决问题：
-
-- 无 CSRF 防护
-- 默认密码无强制修改机制
-- 无登录速率限制
-- Docker 容器以 root 运行
-- 修改密码后当前会话失效
+- 未实现显式 CSRF token，当前依赖 `SameSite=Lax`、JSON 请求类型与 Origin 校验降低风险
+- Docker 容器仍默认以 root 运行
+- 登录限流是进程内状态，服务重启后清零
+- 尚未内置数据库自动备份
 
 ## 计划功能
 
