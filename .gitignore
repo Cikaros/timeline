@@ -12,3 +12,7 @@ pnpm-lock.yaml
 claude_code_env.sh
 CLAUDE.md
 .specflow
+.sdlc
+intent.md
+plan.md
+spec.md

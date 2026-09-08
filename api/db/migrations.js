@@ -29,6 +29,58 @@ const migrations = [
   },
 ]
 
+// 迁移版本必须从 2 开始继续递增。
+migrations.push({
+  version: 2,
+  description: '新增日历订阅链接表',
+  up: [
+    `CREATE TABLE IF NOT EXISTS calendar_subscriptions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      token TEXT NOT NULL UNIQUE,
+      enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+      access_count INTEGER NOT NULL DEFAULT 0,
+      last_accessed_at INTEGER,
+      created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+      updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
+    )`,
+    'CREATE INDEX IF NOT EXISTS idx_calendar_subscriptions_token ON calendar_subscriptions(token)',
+  ],
+})
+
+migrations.push({
+  version: 4,
+  description: '为账号增加管理员角色',
+  up: [
+    "ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'",
+    "UPDATE users SET role = 'admin' WHERE username = 'owner'",
+    'CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)',
+  ],
+})
+
+migrations.push({
+  version: 3,
+  description: '新增账号与 CalDAV 同步字段',
+  up: [
+    `CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+      updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000)
+    )`,
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username)',
+    'ALTER TABLE sessions ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE CASCADE',
+    'ALTER TABLE calendar_subscriptions ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE CASCADE',
+    'ALTER TABLE meetings ADD COLUMN uid TEXT',
+    'ALTER TABLE meetings ADD COLUMN updated_at INTEGER NOT NULL DEFAULT 0',
+    'UPDATE meetings SET updated_at = CAST(strftime("%s", "now") AS INTEGER) * 1000 WHERE updated_at = 0',
+    'CREATE INDEX IF NOT EXISTS idx_meetings_uid ON meetings(uid)',
+    'CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_calendar_subscriptions_user_id ON calendar_subscriptions(user_id)',
+  ],
+})
+
 /**
  * 执行数据库迁移
  * @param {import('bun:sqlite').Database} db

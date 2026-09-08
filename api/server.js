@@ -5,8 +5,11 @@ import { authRoutes } from './routes/auth.js'
 import { healthRoutes } from './routes/health.js'
 import { settingsRoutes } from './routes/settings.js'
 import { meetingsRoutes } from './routes/meetings.js'
+import { accountsRoutes } from './routes/accounts.js'
+import { subscriptionsRoutes } from './routes/subscriptions.js'
+import { caldavRoutes } from './routes/caldav.js'
 import { jsonResponse, errorResponse } from './utils/response.js'
-import { initializeDefaultPassword } from './services/auth.service.js'
+import { initializeDefaultAccount } from './services/users.service.js'
 import { startScheduledTasks } from './utils/tasks.js'
 
 const STATIC_ROOT = resolve(import.meta.dirname, '../dist')
@@ -75,7 +78,7 @@ async function staticFileHandler(pathname) {
   }
 }
 
-await initializeDefaultPassword()
+await initializeDefaultAccount()
 startScheduledTasks()
 
 console.log(`🚀 后端服务已启动：http://localhost:${CONFIG.PORT}`)
@@ -101,7 +104,15 @@ export default Bun.serve({
       }
 
       const routeCtx = { method, pathname, searchParams: url.searchParams }
-      const routes = [healthRoutes, authRoutes, settingsRoutes, meetingsRoutes]
+  const routes = [
+    healthRoutes,
+    authRoutes,
+    accountsRoutes,
+    settingsRoutes,
+    meetingsRoutes,
+    subscriptionsRoutes,
+    caldavRoutes
+  ]
       for (const route of routes) {
         const response = await route(req, routeCtx)
         if (response) return withSecurityHeaders(response)

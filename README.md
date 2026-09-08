@@ -62,6 +62,7 @@ docker compose up -d
 ## 功能
 
 - 登录认证（默认密码: `REDACTED`，首次登录后强制修改）
+- 账号管理（全局最多 2 个账号，默认账号名为 `owner`）
 - 添加/删除见面记录
 - 支持日期范围和多项输入（如 `20250101~20250105` 或逗号分隔）
 - 日历视图查看历史记录，今日高亮
@@ -70,6 +71,9 @@ docker compose up -d
 - 显示从第一次见面到现在的天数
 - 心形跳动与飞出爱心动画
 - 修改密码
+- 日历订阅链接管理
+- 可将 Timeline 日程添加到手机系统日历
+- CalDAV 双向同步（支持日历客户端新增/修改/删除全天事件）
 - 响应式设计（适配 PC 和移动端）
 - 心形 SVG favicon
 
@@ -89,8 +93,52 @@ docker compose up -d
 | GET | `/api/settings` | 获取设置（需认证） |
 | POST | `/api/first-meeting` | 设置第一次见面日期（需认证） |
 | POST | `/api/password` | 修改密码（需认证） |
+| GET | `/api/calendar-subscriptions` | 获取订阅链接列表（需认证） |
+| POST | `/api/calendar-subscriptions` | 创建订阅链接（需认证） |
+| POST | `/api/calendar-subscriptions/:id` | 更新名称或启用状态（需认证） |
+| DELETE | `/api/calendar-subscriptions/:id` | 删除订阅链接（需认证） |
+| GET | `/api/calendar/:token.ics` | 获取 ICS 订阅内容（无需登录） |
+| GET | `/api/accounts` | 获取账号列表（需认证） |
+| POST | `/api/accounts` | 创建账号（需认证，全局最多 2 个） |
+| POST | `/api/accounts/password` | 修改当前账号密码（需认证） |
+| DELETE | `/api/accounts/:id` | 删除账号（需认证，至少保留 1 个） |
 
 **认证方式**：受保护接口需要在请求头中携带 `Cookie: session=xxx`（通过登录成功后自动设置 HttpOnly Cookie）。
+
+## 手机日历订阅
+
+1. 登录后在“日历订阅”面板点击“获取新链接”。
+2. 点击“复制链接”，获得类似 `/api/calendar/<token>.ics` 的完整 URL。
+3. 在 iOS 日历中依次进入“日历 → 账户 → 添加账户 → 其他 → 添加订阅日历”。
+4. 在 Android 系统日历中选择“添加订阅日历”或“从 URL 添加”，粘贴链接。
+5. 日历应用会按系统策略定期刷新；修改 Timeline 后，可手动刷新确认。
+
+订阅 URL 包含访问凭证，请勿转发给无关人员。停用或删除链接后，旧 URL 会立即失效。
+
+## CalDAV 同步
+
+CalDAV 服务端地址：
+
+```text
+http://<你的访问地址>/caldav/
+```
+
+账号信息：
+
+- 用户名：`owner` 或你在“账号管理”中创建的账号
+- 密码：对应账号的 Timeline 密码
+
+支持的路径：
+
+| 路径 | 说明 |
+| --- | --- |
+| `/.well-known/caldav` | CalDAV 自动发现入口 |
+| `/caldav/` | CalDAV 服务根路径 |
+| `/caldav/calendars/<username>/` | Timeline 日历集合 |
+
+CalDAV 会把 Timeline 的每一天映射为全天事件。客户端新增或修改多日事件时，Timeline 会拆成多天记录；删除事件会删除相同 UID 下的全部日期。仅支持全天事件，不支持重复规则。
+
+HTTP Basic Auth 会明文携带密码，请只在 HTTPS 或可信局域网中使用。删除账号后，该账号的 CalDAV 登录立即失效，但见面记录会保留。
 
 ## 项目结构
 

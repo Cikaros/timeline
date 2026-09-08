@@ -4,7 +4,11 @@ const appState = {
   calYear: new Date().getUTCFullYear(),
   calMonth: new Date().getUTCMonth(),
   firstMeetingYear: null,
-  firstMeetingDate: null
+  firstMeetingDate: null,
+  subscriptions: [],
+  accounts: [],
+  maxAccounts: 2,
+  currentUser: null
 }
 
 export function getState() {

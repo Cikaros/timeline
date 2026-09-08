@@ -1,32 +1,25 @@
 // src/animations/heart.js
 import { RIPPLE_RING_COUNT, HEART_BURST_COUNT } from '../utils/constants.js'
 
-// 心形尺寸配置：[断点, 宽度比, 最大尺寸]
-const HEART_SIZE_BREAKPOINTS = [
-  { maxWidth: 480, widthRatio: 0.44, maxSize: 100 },
-  { maxWidth: 768, widthRatio: 0.5, maxSize: 120 },
-  { maxWidth: 1024, widthRatio: 0.45, maxSize: 160 },
-  { maxWidth: Infinity, widthRatio: 0.5, maxSize: 260 },
-]
+const HEART_MOBILE_MAX_SIZE = 160
+// 桌面端以故事面板容器为基准；低于阈值后才线性缩小
+const HEART_CONTAINER_STABLE_WIDTH = 320
+const HEART_CONTAINER_MIN_WIDTH = 220
+const HEART_CONTAINER_MIN_RATIO = 0.55
+const HEART_DESKTOP_WIDTH_RATIO = 0.44
+const HEART_DESKTOP_MAX_SIZE = 146
 
-const HEART_MIN_SIZE = 60
-const HEART_MIN_SIZE_MOBILE = 40
-const HEART_SIZE_PADDING = 12
-const HEART_CENTER_OFFSET_Y = 5
-const HEART_SCALE_DOWN = 0.95
-const HEART_SCALE_UP = 1.15
-const HEART_MARGIN_RATIO = 0.25
-const HEART_Y_OFFSET_RATIO_NARROW = 0.06
-const HEART_Y_OFFSET_RATIO_MEDIUM = 0.03
-const HEART_BTN_SPACING = 12
-const HEART_BTN_MIN_HALF = 20
+const HEART_MIN_SIZE = 72
+const HEART_MIN_SIZE_MOBILE = 72
+const HEART_COUNT_GAP_RATIO = 0.2
+const HEART_EDGE_SPACING = 14
 const RIPPLE_SIZE_RATIO = 1.4
 const RIPPLE_EMIT_RATIO = 0.6
 const RIPPLE_MIN_BEAT_SEC = 0.2
 const RIPPLE_MIN_DURATION = 1.2
 // 心电图波形参数
-const ECG_WAVE_RATIO = 1.5
-const ECG_TRAIL_SPAN = 0.42
+const ECG_WAVE_RATIO = 1.0
+const ECG_TRAIL_HALF_SPAN = 6
 
 // 漂浮爱心分布配置：[断点, leftMin%, leftRange%, bottomMin%, bottomRange%]
 const HEART_DISTRIBUTION_BREAKPOINTS = [
@@ -49,61 +42,38 @@ const HEART_REMOVE_DELAY = 0.3
  */
 export function positionHeartToCount() {
   const panel = document.querySelector('.panel.story-panel')
-  const countWrap = panel?.querySelector('.count-wrap')
-  if (!panel || !countWrap) return
+  const countBlock = panel?.querySelector('.count-block')
+  if (!panel || !countBlock) return
 
   const panelRect = panel.getBoundingClientRect()
-  const countRect = countWrap.getBoundingClientRect()
-  const absCenterX = countRect.left + countRect.width / 2
-  const absCenterY = countRect.top + countRect.height / 2
-
-  let heartSize = Math.max(HEART_MIN_SIZE, Math.round(Math.max(countRect.width, countRect.height) + HEART_SIZE_PADDING))
   const vw = window.innerWidth || document.documentElement.clientWidth || 360
 
-  // 响应式心形大小
-  let maxSizeByVw
-  for (const bp of HEART_SIZE_BREAKPOINTS) {
-    if (vw <= bp.maxWidth) {
-      maxSizeByVw = Math.round(Math.min(panelRect.width * bp.widthRatio, bp.maxSize))
-      break
-    }
+  // 心形尺寸只从父容器宽度推导，文字和间距再按同一比例缩放。
+  let desiredSize
+  if (vw <= 768) {
+    desiredSize = Math.round(Math.min(
+      panelRect.width * 0.32,
+      HEART_MOBILE_MAX_SIZE
+    ))
+  } else {
+    const shrinkRatio = panelRect.width >= HEART_CONTAINER_STABLE_WIDTH
+      ? 1
+      : Math.max(
+          HEART_CONTAINER_MIN_RATIO,
+          (panelRect.width - HEART_CONTAINER_MIN_WIDTH) /
+            (HEART_CONTAINER_STABLE_WIDTH - HEART_CONTAINER_MIN_WIDTH)
+        )
+    desiredSize = Math.round(Math.min(
+      panelRect.width * HEART_DESKTOP_WIDTH_RATIO,
+      HEART_DESKTOP_MAX_SIZE
+    ) * shrinkRatio)
   }
 
-  heartSize = Math.min(heartSize, maxSizeByVw)
-  if (vw <= 1024) heartSize = Math.max(HEART_MIN_SIZE_MOBILE, Math.round(heartSize * HEART_SCALE_DOWN))
-  if (vw >= 1024) heartSize = Math.min(Math.round(heartSize * HEART_SCALE_UP), maxSizeByVw)
+  let heartSize = Math.max(vw <= 768 ? HEART_MIN_SIZE_MOBILE : HEART_MIN_SIZE, desiredSize)
 
-  // 避免与按钮重叠
-  const actionBtn = panel.querySelector('#celebrate')
-  if (actionBtn) {
-    const btnRect = actionBtn.getBoundingClientRect()
-    const distToBtnTop = btnRect.top - absCenterY
-    if (distToBtnTop > 0) {
-      const allowedHalf = Math.max(HEART_BTN_MIN_HALF, Math.floor(distToBtnTop - HEART_BTN_SPACING))
-      heartSize = Math.min(heartSize, allowedHalf * 2)
-    }
-  }
-
-  // 计算相对位置
-  let relX = Math.round(absCenterX - panelRect.left)
-  let relY = Math.round(absCenterY - panelRect.top) + HEART_CENTER_OFFSET_Y // 视觉居中微调
-
-  const margin = Math.round(heartSize * HEART_MARGIN_RATIO)
-  const minX = margin
-  const maxX = Math.max(margin, Math.round(panelRect.width - margin))
-  const minY = margin
-  const maxY = Math.max(margin, Math.round(panelRect.height - margin))
-
-  if (vw <= 768) relY -= Math.round(heartSize * HEART_Y_OFFSET_RATIO_NARROW)
-  else if (vw <= 1024) relY -= Math.round(heartSize * HEART_Y_OFFSET_RATIO_MEDIUM)
-
-  relX = Math.max(minX, Math.min(relX, maxX))
-  relY = Math.max(minY, Math.min(relY, maxY))
-
-  // 设置CSS变量
-  panel.style.setProperty('--heart-left', `${relX}px`)
-  panel.style.setProperty('--heart-top', `${relY}px`)
   panel.style.setProperty('--heart-size', `${heartSize}px`)
+  panel.style.setProperty('--count-gap', `${Math.round(heartSize * HEART_COUNT_GAP_RATIO + HEART_EDGE_SPACING)}px`)
+  countBlock.classList.add('heart-ready')
 
   // 心电图线：线段沿白色轨道从左至右单向流动，跟随波形切线（SVG animateMotion）
   const ecgWidth = Math.round(heartSize * ECG_WAVE_RATIO)
@@ -122,33 +92,31 @@ export function positionHeartToCount() {
     ecg.setAttribute('aria-hidden', 'true')
     ecg.innerHTML =
       `<path class="ecg-base" fill="none" d="${ECG_D}"></path>` +
-      `<line class="ecg-seg ecg-seg-glow" x1="-12" y1="0" x2="12" y2="0"><animateMotion dur="${ecgDuration}s" repeatCount="indefinite" path="${ECG_D}" rotate="auto"/></line>` +
-      `<line class="ecg-seg" x1="-12" y1="0" x2="12" y2="0"><animateMotion dur="${ecgDuration}s" repeatCount="indefinite" path="${ECG_D}" rotate="auto"/></line>`
+      `<line class="ecg-seg ecg-seg-glow" x1="-${ECG_TRAIL_HALF_SPAN}" y1="0" x2="${ECG_TRAIL_HALF_SPAN}" y2="0"><animateMotion dur="${ecgDuration}s" repeatCount="indefinite" path="${ECG_D}" rotate="auto"/></line>` +
+      `<line class="ecg-seg" x1="-${ECG_TRAIL_HALF_SPAN}" y1="0" x2="${ECG_TRAIL_HALF_SPAN}" y2="0"><animateMotion dur="${ecgDuration}s" repeatCount="indefinite" path="${ECG_D}" rotate="auto"/></line>`
     panel.appendChild(ecg)
   } else {
     ecg.querySelectorAll('animateMotion').forEach(a => a.setAttribute('dur', `${ecgDuration}s`))
   }
 
   ecg.style.setProperty('--ecg-dur', `${ecgDuration}s`)
-  ecg.style.left = `${relX}px`
-  ecg.style.top = `${relY - 15}px`
   ecg.style.width = `${ecgWidth}px`
   ecg.style.height = `${Math.round(ecgWidth / 5)}px`
+
+  if (ecg.parentElement !== countBlock) countBlock.appendChild(ecg)
   // 生成涟漪环
   const totalDur = Math.max(beatSec * (RIPPLE_RING_COUNT + 1) * RIPPLE_EMIT_RATIO, RIPPLE_MIN_DURATION)
   const emitSpacing = beatSec * RIPPLE_EMIT_RATIO
 
   for (let i = 1; i <= RIPPLE_RING_COUNT; i++) {
-    let ring = panel.querySelector(`.ripple-ring.r${i}`)
+    let ring = countBlock.querySelector(`.ripple-ring.r${i}`)
     if (!ring) {
       ring = document.createElement('div')
       ring.className = `ripple-ring r${i}`
-      panel.appendChild(ring)
+      countBlock.appendChild(ring)
     }
 
     Object.assign(ring.style, {
-      left: `${relX}px`,
-      top: `${relY}px`,
       width: `${Math.round(heartSize * RIPPLE_SIZE_RATIO)}px`,
       height: `${Math.round(heartSize * RIPPLE_SIZE_RATIO)}px`,
       animation: `ripple-ring ${totalDur}s infinite cubic-bezier(.22,.84,.31,1)`,

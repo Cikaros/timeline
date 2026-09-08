@@ -6,6 +6,7 @@
   --accent-strong: #ff2e6d;
   --accent-gradient: linear-gradient(90deg,#ff5c8a,#ff2e6d);
   --muted: #6b6b6b;
+  --heart-ripple-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-2 -2 36 33.6'><path d='M23.6,0C20.4,0,17.9,1.8,16,4.1C14.1,1.8,11.6,0,8.4,0C3.8,0,0,3.8,0,8.4c0,9.8,16,21.2,16,21.2s16-11.4,16-21.2C32,3.8,28.2,0,23.6,0z' fill='none' stroke='white' stroke-width='2.2' stroke-linejoin='round'/></svg>");
 }
 *{box-sizing:border-box}
 html,body,#app{height:100%}
@@ -39,6 +40,10 @@ body{
 .header-right{ margin-left:auto; text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:6px }
 .header-right .header-actions{ display:flex; gap:8px; align-items:center; flex-wrap:nowrap }
 .header-right .header-actions .btn{ white-space:nowrap }
+.header-right .header-actions .btn.admin{
+  border-color:rgba(255,92,138,0.26);
+  font-weight:700;
+}
 
 @media (max-width: 480px){
   .header-right .header-actions .btn{ padding:6px 8px; font-size:13px }
@@ -68,7 +73,22 @@ body{
   color: transparent;
   -webkit-text-fill-color: transparent;
   text-shadow: 0 6px 18px rgba(255,92,138,0.06);
-  font-size: 40px; /* slightly larger */
+  font-size: clamp(24px, calc(var(--heart-size, 160px) * 0.3), 56px);
+  text-align:center;
+}
+.count-wrap{
+  display:inline-flex;
+  flex-direction:column;
+  align-items:center;
+  padding: clamp(7px, calc(var(--heart-size, 160px) * 0.06), 16px) clamp(13px, calc(var(--heart-size, 160px) * 0.13), 30px);
+  border-radius:6px;
+  position:relative;
+  z-index:4;
+}
+.count-label{
+  font-size: clamp(13px, calc(var(--heart-size, 160px) * 0.125), 24px);
+  text-align:center;
+  margin-bottom: clamp(2px, calc(var(--heart-size, 160px) * 0.035), 8px);
 }
 .grid{display:grid;grid-template-columns:1fr 360px;gap:18px;margin-top:18px}
 .panel{background:rgba(255,255,255,0.6);padding:16px;border-radius:12px;position:relative;z-index:2}
@@ -100,6 +120,106 @@ textarea{ min-height:84px; resize:vertical }
 /* 微调日期输入的外观以与主题统一 */
 input[type="date"]{ padding:8px 10px }
 .controls{display:flex;gap:8px;align-items:center}
+
+/* 日历订阅管理面板 */
+.subscription-panel{
+  margin-top:18px;
+  padding:14px 16px;
+  border:1px solid rgba(255,92,138,0.10);
+  background:linear-gradient(135deg, rgba(255,255,255,0.88), rgba(255,240,246,0.92));
+  box-shadow:0 8px 24px rgba(255,92,138,0.06);
+}
+.subscription-header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.subscription-title{
+  font-size:15px;
+  font-weight:800;
+  color:var(--accent-strong);
+}
+.subscription-title-row{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.help-button{
+  width:22px;
+  height:22px;
+  padding:0;
+  border:1px solid rgba(255,92,138,0.18);
+  border-radius:50%;
+  background:rgba(255,255,255,0.88);
+  color:var(--accent-strong);
+  font-size:12px;
+  font-weight:900;
+  line-height:1;
+  cursor:pointer;
+  transition:border-color 160ms ease, box-shadow 160ms ease, transform 120ms ease;
+}
+.help-button:hover{
+  border-color:rgba(255,92,138,0.34);
+  box-shadow:0 6px 16px rgba(255,92,138,0.10);
+  transform:translateY(-1px);
+}
+.subscription-warning{margin-top:4px;font-size:12px;line-height:1.4;color:#a16207}
+#subscription-list{
+  display:grid;
+  gap:10px;
+  margin-top:14px;
+}
+.subscription-empty{
+  padding:18px 14px;
+  border:1px dashed rgba(255,92,138,0.22);
+  border-radius:12px;
+  background:rgba(255,255,255,0.52);
+  font-size:13px;
+  text-align:center;
+  color:var(--muted);
+}
+.subscription-item{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:14px;
+  padding:12px 14px;
+  border:1px solid rgba(255,92,138,0.08);
+  border-radius:12px;
+  background:rgba(255,255,255,0.82);
+  box-shadow:0 4px 14px rgba(255,92,138,0.05);
+}
+.subscription-item.current{
+  border-color:rgba(255,92,138,0.28);
+  background:linear-gradient(135deg, rgba(255,255,255,0.96), rgba(255,240,246,0.98));
+}
+.subscription-item .role-badge{
+  display:inline-block;
+  margin-left:6px;
+  padding:2px 6px;
+  border-radius:999px;
+  background:rgba(255,92,138,0.10);
+  color:var(--accent-strong);
+  font-size:11px;
+  font-weight:800;
+  vertical-align:middle;
+}
+.subscription-panel.focused{
+  border-color:rgba(255,92,138,0.42);
+  box-shadow:0 0 0 3px rgba(255,92,138,0.12), 0 8px 24px rgba(255,92,138,0.08);
+}
+.subscription-info{min-width:0}
+.subscription-name{font-size:14px;font-weight:700;color:#222}
+.subscription-meta{margin-top:4px;font-size:12px;line-height:1.4;color:var(--muted)}
+.subscription-actions{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  gap:6px;
+}
+.subscription-actions .btn{
+  padding:6px 10px;
+  border-radius:9px;
+  font-size:12px;
+  white-space:nowrap;
+}
+.btn.ghost.danger{color:#c9184f;border-color:rgba(201,24,79,0.16)}
 @keyframes beat{
   0%{transform: translate(-50%,-50%) scale(1)}
   25%{transform: translate(-50%,-50%) scale(1.08)}
@@ -109,12 +229,21 @@ input[type="date"]{ padding:8px 10px }
 }
 
 /* story-panel: background heart and ripple (behind content) */
-.panel.story-panel::before{
+.count-block{
+  position:relative;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+  min-height:var(--heart-size, 160px);
+  margin-top:var(--count-gap, 20px);
+}
+
+.count-block::before{
   content: '';
   position: absolute;
-  /* position controlled by CSS vars set from JS; defaults keep previous placement */
-  left: var(--heart-left, 50%);
-  top: var(--heart-top, 18px);
+  left: 50%;
+  top: 50%;
   width: var(--heart-size, 160px);
   height: var(--heart-size, 160px);
   pointer-events: none;
@@ -124,70 +253,79 @@ input[type="date"]{ padding:8px 10px }
   background-position: center;
   transform-origin: center;
   mix-blend-mode: multiply;
-  opacity: 0.82;
+  opacity: 0;
+  visibility: hidden;
   filter: drop-shadow(0 8px 14px rgba(0,0,0,0.06));
   z-index: 1; /* put heart above the ripple */
   animation: beat var(--heart-beat-duration, 1s) infinite cubic-bezier(.22,.84,.31,1);
   transform: translate(-50%, -50%);
 }
 
+/* Avoid showing the heart at its fallback position before JS has measured layout. */
+.count-block.heart-ready::before{
+  opacity: 0.82;
+  visibility: visible;
+  transition: opacity 180ms ease, visibility 180ms ease;
+}
+
 /* multiple ripple rings placed behind content; they'll be DOM nodes inserted by JS */
-.panel.story-panel .ripple-ring{
+.count-block .ripple-ring{
   position:absolute;
-  left: var(--heart-left, 50%);
-  top: var(--heart-top, 18px);
+  left: 50%;
+  top: 50%;
   right: auto;
   width: var(--heart-size, 160px);
   height: var(--heart-size, 160px);
-  border-radius:50%;
   pointer-events:none;
   transform-origin:center;
   transform: translate(-50%, -50%);
   z-index:2; /* put ripples above the heart pseudo-element */
-  border: 1.6px solid rgba(255,92,138,0.16);
-  background: radial-gradient(circle at 50% 40%, rgba(255,92,138,0.06), transparent 35%);
+  background-color: rgba(255,92,138,0.16);
+  mask: var(--heart-ripple-mask) center / contain no-repeat;
+  -webkit-mask: var(--heart-ripple-mask) center / contain no-repeat;
   opacity:0;
   filter: blur(0.6px); /* soften edge */
 }
 
 /* 心电图线：横穿心形中心，脉搏光带与心跳同步（纯 CSS dash 方案）
    层级：心形(1) < 涟漪(2) < 心电图(3) < 文字(4) */
-.panel.story-panel .ecg-line{
+.count-block .ecg-line{
   position:absolute;
-  left: var(--heart-left, 50%);
-  top: var(--heart-top, 18px);
+  left: 50%;
+  top: 50%;
   pointer-events:none;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, calc(-50% - 12px));
   overflow:visible;
   z-index:3; /* 明确覆盖在心形与涟漪之上 */
 }
 /* 静态底轨：白色细线，刻出波形轮廓 */
-.panel.story-panel .ecg-base{
+.count-block .ecg-base{
   stroke:#fff;
-  stroke-width:2.6;
+  stroke-width:2.8;
   stroke-linejoin:round;
   opacity:.9;
 }
 /* 脉搏线段：沿白色轨道从左至右单向流动，跟随波形切线方向 */
-.panel.story-panel .ecg-seg{stroke:var(--accent-strong);stroke-width:3.4;stroke-linecap:round;fill:none}
-.panel.story-panel .ecg-seg.ecg-seg-glow{stroke-width:7;opacity:.35;filter:blur(2px)}
+.count-block .ecg-seg{stroke:var(--accent-strong);stroke-width:3.6;stroke-linecap:round;fill:none}
+.count-block .ecg-seg.ecg-seg-glow{stroke-width:6.8;opacity:.34;filter:blur(2px)}
 
 @keyframes ripple-ring{
-  0%{ opacity:0.48; transform: translate(-50%,-50%) scale(0.6); border-color: rgba(255,92,138,0.28) }
+  0%{ opacity:0.48; transform: translate(-50%,-50%) scale(0.6); background-color: rgba(255,92,138,0.28) }
   30%{ opacity:0.36; transform: translate(-50%,-50%) scale(1.1) }
   60%{ opacity:0.18; transform: translate(-50%,-50%) scale(1.9) }
-  100%{ opacity:0; transform: translate(-50%,-50%) scale(3.6); border-color: rgba(255,92,138,0.02) }
+  100%{ opacity:0; transform: translate(-50%,-50%) scale(3.6); background-color: rgba(255,92,138,0.02) }
 }
 
 /* gentle strong pulse state on click: briefly increase opacity and slightly speed up */
-.panel.story-panel .ripple-ring.strong{
+.count-block .ripple-ring.strong{
   animation-duration: 1.0s;
   opacity: 0.7;
-  border-color: rgba(255,20,80,0.28);
+  background-color: rgba(255,20,80,0.28);
 }
 
 /* allow ripple to expand outside the panel */
 .panel.story-panel{overflow:visible}
+.story-actions{margin-top:var(--count-gap,18px)}
 .floating-hearts{position:absolute;left:0;bottom:0;right:0;top:0;pointer-events:none;overflow:visible}
 .floating-hearts .h{position:absolute;width:14px;height:14px;opacity:0.9;transform:translateY(0)}
 .floating-hearts .h svg{width:100%;height:100%;display:block;fill:var(--accent);mix-blend-mode:multiply;filter: drop-shadow(0 6px 10px rgba(0,0,0,0.04));}
@@ -203,8 +341,14 @@ input[type="date"]{ padding:8px 10px }
 @media (max-width: 1024px){
   .grid{grid-template-columns:1fr 320px}
   .panel{padding:14px}
-  .panel.story-panel::before{ width: calc(var(--heart-size,160px) * 0.92); height: calc(var(--heart-size,160px) * 0.92); }
-  .panel.story-panel .ripple-ring{ width: calc(var(--heart-size,160px) * 0.92); height: calc(var(--heart-size,160px) * 0.92); }
+  .header-right .header-actions{flex-wrap:wrap;justify-content:flex-end}
+  .header-right .header-actions .btn{padding:7px 10px;font-size:13px}
+  .subscription-header{align-items:flex-start}
+  .subscription-header .btn{flex:0 0 auto}
+  .subscription-item{gap:10px}
+  .subscription-actions{justify-content:flex-end;max-width:190px}
+  .count-block::before{ width: var(--heart-size,160px); height: var(--heart-size,160px); }
+  .count-block .ripple-ring{ width: var(--heart-size,160px); height: var(--heart-size,160px); }
 }
 
 @media (max-width: 768px){
@@ -213,9 +357,20 @@ input[type="date"]{ padding:8px 10px }
   .grid{display:block}
   .panel{margin-bottom:16px}
   .panel.story-panel{ text-align:center }
-  .panel.story-panel::before{ width: clamp(100px, 28vw, 140px); height: clamp(100px, 28vw, 140px); left: var(--heart-left, 50%); }
-  .panel.story-panel .ripple-ring{ width: clamp(100px, 28vw, 140px); height: clamp(100px, 28vw, 140px); }
+  .count-block::before{ width: var(--heart-size,160px); height: var(--heart-size,160px); }
+  .count-block .ripple-ring{ width: var(--heart-size,160px); height: var(--heart-size,160px); }
+  .count-block .ecg-base{stroke-width:5.6}
+  .count-block .ecg-seg{stroke-width:7.2}
+  .count-block .ecg-seg.ecg-seg-glow{stroke-width:12.4;opacity:.4;filter:blur(3px)}
+  .count-block .ecg-line{transform:translate(-50%, calc(-50% - 8px))}
   .floating-hearts .h{ width:12px;height:12px }
+  .header-actions{align-items:center}
+  .header-actions .btn{flex:1 1 calc(50% - 8px);min-width:82px;text-align:center}
+  .subscription-header{flex-direction:column;align-items:stretch}
+  .subscription-header .btn{width:100%}
+  .subscription-item{flex-direction:column;align-items:stretch}
+  .subscription-actions{justify-content:flex-start}
+  .subscription-actions .btn{flex:1 1 calc(50% - 6px);min-width:72px;text-align:center}
 }
 
 @media (max-width: 480px){
@@ -223,13 +378,18 @@ input[type="date"]{ padding:8px 10px }
   .card{padding:16px}
   .title{font-size:18px}
   .big-counter{font-size:36px}
-  #total-count{font-size:32px}
-  .panel.story-panel::before{ width: clamp(84px, 36vw, 120px); height: clamp(84px, 36vw, 120px); }
-  .panel.story-panel .ripple-ring{ width: clamp(84px, 36vw, 120px); height: clamp(84px, 36vw, 120px); }
+  .count-block::before{ width: var(--heart-size,160px); height: var(--heart-size,160px); }
+  .count-block .ripple-ring{ width: var(--heart-size,160px); height: var(--heart-size,160px); }
   .panel.story-panel .ripple-ring.r1,
   .panel.story-panel .ripple-ring.r2,
   .panel.story-panel .ripple-ring.r3{ animation-duration: 2.2s }
   .floating-hearts .h{ width:8px;height:8px }
+  .header-right{text-align:center;align-items:center}
+  .header-actions{justify-content:center}
+  .subscription-title{font-size:14px}
+  .subscription-warning{font-size:12px}
+  .subscription-item{padding:11px 12px}
+  .subscription-actions .btn{padding:8px 10px}
 }
 
 /* Toast notifications */
@@ -312,6 +472,131 @@ input[type="date"]{ padding:8px 10px }
   line-height:1.5;
 }
 
+/* 账号管理弹窗：保持与订阅面板同一套卡片语言 */
+.account-modal-overlay{
+  backdrop-filter: blur(4px);
+}
+.account-modal-inner{
+  width:min(620px, 94vw);
+  max-height:min(82vh, 640px);
+  overflow:hidden auto;
+  border:1px solid rgba(255,92,138,0.10);
+  background:linear-gradient(135deg, rgba(255,255,255,0.98), rgba(255,240,246,0.98));
+  border-radius:16px;
+  padding:18px;
+  box-shadow:0 8px 24px rgba(255,92,138,0.06), 0 20px 40px rgba(0,0,0,0.10);
+}
+.account-modal-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+}
+.account-modal-header .modal-title{
+  margin:0 0 4px;
+  font-size:15px;
+  font-weight:800;
+  color:var(--accent-strong);
+}
+.account-modal-list{
+  display:grid;
+  gap:10px;
+  margin-top:14px;
+}
+.account-modal-footer{
+  display:flex;
+  justify-content:flex-end;
+  margin-top:14px;
+  padding-top:12px;
+  border-top:1px solid rgba(255,92,138,0.08);
+}
+
+/* 日历帮助弹窗：延续订阅面板卡片样式 */
+.help-modal-inner{
+  width:min(640px, 94vw);
+  max-height:min(84vh, 680px);
+  overflow:hidden auto;
+  border:1px solid rgba(255,92,138,0.10);
+  background:linear-gradient(135deg, rgba(255,255,255,0.98), rgba(255,240,246,0.98));
+  border-radius:16px;
+  padding:18px;
+  box-shadow:0 8px 24px rgba(255,92,138,0.06), 0 20px 40px rgba(0,0,0,0.10);
+}
+.help-section{
+  margin-top:14px;
+  padding:14px;
+  border:1px solid rgba(255,92,138,0.08);
+  border-radius:12px;
+  background:rgba(255,255,255,0.82);
+  box-shadow:0 4px 14px rgba(255,92,138,0.05);
+}
+.help-section-title{
+  font-size:14px;
+  font-weight:800;
+  color:var(--accent-strong);
+}
+.help-list{
+  margin:10px 0 0;
+  padding-left:20px;
+  display:grid;
+  gap:6px;
+  font-size:13px;
+  line-height:1.5;
+  color:#444;
+}
+.help-address-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-top:10px;
+}
+.help-address{
+  flex:1;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  padding:8px 10px;
+  border:1px solid rgba(255,92,138,0.10);
+  border-radius:9px;
+  background:rgba(255,255,255,0.92);
+  font-size:12px;
+}
+.help-note{
+  margin:10px 0 0;
+  font-size:12px;
+  line-height:1.5;
+  color:var(--muted);
+}
+
+@media (max-width: 1024px){
+  .account-modal-inner{width:min(560px, 92vw)}
+  .account-modal-header .btn{flex:0 0 auto}
+  .help-modal-inner{width:min(580px, 92vw)}
+  .help-address-row .btn{flex:0 0 auto}
+}
+
+@media (max-width: 768px){
+  .modal-overlay{align-items:flex-end}
+  .account-modal-inner{
+    width:100%;
+    max-height:88vh;
+    border-radius:16px 16px 0 0;
+    padding:16px;
+  }
+  .account-modal-header{align-items:center}
+  .account-modal-footer .btn{width:100%}
+  .help-modal-inner{
+    width:100%;
+    max-height:88vh;
+    border-radius:16px 16px 0 0;
+    padding:16px;
+  }
+  .help-section{padding:12px}
+  .help-address-row{align-items:stretch}
+  .help-address-row .btn{padding:8px 10px}
+}
+
 /* 日历视图样式 */
 .calendar-table{width:100%;border-collapse:collapse;margin:8px 0 16px 0;font-size:15px;user-select:none}
 .calendar-table th,.calendar-table td{width:14.2%;height:36px;text-align:center;padding:0;border:1px solid #f3d6e2;background:#ffffff}
@@ -388,7 +673,7 @@ input[type="date"]{ padding:8px 10px }
   .panel.story-panel::before,
   .panel.story-panel .ripple-ring,
   .calendar-day.has-note::before{animation:none}
-  .panel.story-panel .ecg-seg{display:none}
+  .count-block .ecg-seg{display:none}
   .floating-hearts .h.animate{animation:none;opacity:0.7}
   .calendar-day.highlight{animation:none;background:rgba(255,92,138,0.18)}
 }

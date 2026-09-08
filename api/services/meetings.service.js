@@ -26,7 +26,7 @@ export function insertMeetings(input, note = '') {
         skipped.push(date)
         continue
       }
-      const result = preparedStatements.insertMeeting.run(date, note)
+      const result = preparedStatements.insertMeeting.run(date, note, null, Date.now())
       inserted.push({
         id: result.lastInsertRowid,
         date,
@@ -44,7 +44,7 @@ export function insertMeetings(input, note = '') {
  * @returns {number} 受影响的行数
  */
 export function updateMeetingNote(id, note) {
-  const result = preparedStatements.updateMeetingNote.run(note, id)
+  const result = preparedStatements.updateMeetingNote.run(note, Date.now(), id)
   return result.changes
 }
 

@@ -17,23 +17,34 @@ export function parseCookies(cookieHeader) {
 }
 
 export function verifySession(token) {
-  if (!token) return false
+  if (!token) return null
 
   const tokenHash = hashSessionToken(token)
   const row = preparedStatements.getSession.get(tokenHash)
   if (!row) return false
 
-  if (Date.now() > row.expires) {
+  if (!row.user_id || Date.now() > row.expires) {
     preparedStatements.deleteSession.run(tokenHash)
-    return false
+    return null
   }
-  return true
+
+  return {
+    token,
+    userId: row.user_id,
+    username: row.username
+  }
 }
 
 export function requireAuth(req) {
   const cookies = parseCookies(req.headers.get('cookie') || '')
   const token = cookies['session']
-  return verifySession(token) ? token : null
+  return verifySession(token)
+}
+
+const requestAuth = new WeakMap()
+
+export function getCurrentUser(req) {
+  return requestAuth.get(req) || null
 }
 
 function usesDefaultPassword() {
@@ -42,9 +53,12 @@ function usesDefaultPassword() {
 
 export function withAuth(handler) {
   return async (req, ...args) => {
-    if (!requireAuth(req)) {
+    const auth = requireAuth(req)
+    if (!auth) {
       return errorResponse('未授权', 401, getCorsHeaders(req))
     }
+
+    requestAuth.set(req, auth)
 
     if (usesDefaultPassword()) {
       const url = new URL(req.url)

@@ -1,14 +1,19 @@
 // src/main.js — 应用入口
 import { parseInputToDates, formatDateObj } from './utils/dateParser.js'
-import { meetingsAPI, settingsAPI, authAPI } from './utils/api.js'
+import {
+  meetingsAPI,
+  settingsAPI,
+  authAPI,
+  subscriptionsAPI,
+  accountsAPI
+} from './utils/api.js'
 import { showToast } from './utils/ui.js'
-import { HEART_POSITION_DELAY } from './utils/constants.js'
 import { getState, setState } from './state.js'
 import { showLogin } from './auth/login.js'
 import { renderCalendar } from './calendar/render.js'
 import { positionHeartToCount, burstHearts } from './animations/heart.js'
 import { showNotePopup } from './components/note-popup.js'
-import { showPrompt, showMultiPrompt, showAlert } from './components/prompt-modal.js'
+import { showPrompt, showMultiPrompt, showConfirm, showAlert } from './components/prompt-modal.js'
 
 /**
  * 计算两个日期之间的天数
@@ -32,9 +37,11 @@ function daysBetween(a, b) {
 async function render(reload = true, preloadedSettings = null) {
   try {
     if (reload) {
-      const [meetingsData, settings] = await Promise.all([
+      const [meetingsData, settings, subscriptionsData, accountsData] = await Promise.all([
         meetingsAPI.getAll(),
-        preloadedSettings ?? settingsAPI.get()
+        preloadedSettings ?? settingsAPI.get(),
+        subscriptionsAPI.getAll(),
+        accountsAPI.getAll()
       ])
 
       const meetings = (meetingsData.rows || []).map(m => ({
@@ -51,7 +58,16 @@ async function render(reload = true, preloadedSettings = null) {
       }
 
       const firstMeetingYear = firstMeetingDate ? Number(firstMeetingDate.split('-')[0]) : null
-      const updates = { meetings, total: meetingsData.total || 0, firstMeetingDate, firstMeetingYear }
+      const updates = {
+        meetings,
+        total: meetingsData.total || 0,
+        firstMeetingDate,
+        firstMeetingYear,
+        subscriptions: subscriptionsData.subscriptions || [],
+        accounts: accountsData.accounts || [],
+        maxAccounts: accountsData.maxAccounts || 2,
+        currentUser: settings.current_user || null
+      }
 
       // 确保日历不会显示早于首次见面的年份
       if (firstMeetingYear && getState().calYear < firstMeetingYear) {
@@ -95,6 +111,8 @@ async function render(reload = true, preloadedSettings = null) {
 
     // 更新统计数据
     document.getElementById('total-count').textContent = state.total
+    renderAccounts()
+    renderSubscriptions()
 
     if (state.firstMeetingDate) {
       const days = Math.max(0, daysBetween(state.firstMeetingDate, new Date()))
@@ -103,8 +121,7 @@ async function render(reload = true, preloadedSettings = null) {
       document.getElementById('days-counter').textContent = '0 天'
     }
 
-    // 延迟定位心形（等待布局完成）
-    setTimeout(positionHeartToCount, HEART_POSITION_DELAY)
+    requestAnimationFrame(positionHeartToCount)
   } catch (e) {
     if (e?.status === 401) {
       showLogin(() => createApp())
@@ -113,6 +130,365 @@ async function render(reload = true, preloadedSettings = null) {
       showToast('加载数据失败', 'error')
     }
   }
+}
+
+function getSubscriptionUrl(subscription) {
+  return `${window.location.origin}/api/calendar/${subscription.token}.ics`
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+}
+
+function formatSubscriptionTime(timestamp) {
+  if (!timestamp) return '从未访问'
+  const date = new Date(timestamp)
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(
+    date.getUTCDate()
+  ).padStart(2, '0')} ${String(date.getUTCHours()).padStart(2, '0')}:${String(
+    date.getUTCMinutes()
+  ).padStart(2, '0')}`
+}
+
+function renderSubscriptions() {
+  const container = document.getElementById('subscription-list')
+  if (!container) return
+
+  const subscriptions = getState().subscriptions
+  if (!subscriptions.length) {
+    container.innerHTML = '<div class="subscription-empty">还没有订阅链接</div>'
+    return
+  }
+
+  container.innerHTML = subscriptions.map(subscription => `
+    <div class="subscription-item">
+      <div class="subscription-info">
+        <div class="subscription-name">${escapeHtml(subscription.name)}</div>
+        <div class="subscription-meta muted">
+          ${subscription.enabled ? '已启用' : '已停用'} · 访问 ${subscription.access_count} 次 · 最近 ${formatSubscriptionTime(subscription.last_accessed_at)}
+        </div>
+      </div>
+      <div class="subscription-actions">
+        <button class="btn ghost" type="button" data-action="copy" data-id="${subscription.id}">复制链接</button>
+        <button class="btn ghost" type="button" data-action="rename" data-id="${subscription.id}">重命名</button>
+        <button class="btn ghost" type="button" data-action="toggle" data-id="${subscription.id}">${subscription.enabled ? '停用' : '启用'}</button>
+        <button class="btn ghost danger" type="button" data-action="delete" data-id="${subscription.id}">删除</button>
+      </div>
+    </div>
+  `).join('')
+}
+
+function formatAccountTime(timestamp) {
+  const date = new Date(timestamp)
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(
+    date.getUTCDate()
+  ).padStart(2, '0')}`
+}
+
+function renderAccounts() {
+  const container = document.querySelector('.account-modal-list')
+  if (!container) return
+
+  const state = getState()
+  const accounts = state.accounts
+  const createButton = document.getElementById('account-modal-create')
+  if (createButton) {
+    createButton.disabled = accounts.length >= state.maxAccounts
+  }
+
+  if (!accounts.length) {
+    container.innerHTML = '<div class="subscription-empty">暂无账号</div>'
+    return
+  }
+
+  container.innerHTML = accounts.map(account => {
+    const isCurrent = state.currentUser?.id === account.id
+    const isAdmin = account.role === 'admin'
+    return `
+      <div class="subscription-item${isCurrent ? ' current' : ''}">
+        <div class="subscription-info">
+          <div class="subscription-name">
+            ${escapeHtml(account.username)}
+            ${isAdmin ? '<span class="role-badge">管理员</span>' : ''}
+          </div>
+          <div class="subscription-meta muted">
+            ${isCurrent ? '当前账号 · ' : ''}创建于 ${formatAccountTime(account.created_at)}
+          </div>
+        </div>
+        <div class="subscription-actions">
+          ${isCurrent ? '<button class="btn ghost" type="button" data-action="password" data-id="' + account.id + '">修改密码</button>' : ''}
+          ${isAdmin ? '' : `<button class="btn ghost danger" type="button" data-action="delete" data-id="${account.id}">删除</button>`}
+        </div>
+      </div>
+    `
+  }).join('')
+}
+
+async function reloadAccounts() {
+  const data = await accountsAPI.getAll()
+  setState({ accounts: data.accounts || [], maxAccounts: data.maxAccounts || 2 })
+  renderAccounts()
+}
+
+function closeAccountModal() {
+  document.querySelector('.account-modal-overlay')?.remove()
+}
+
+function closeCalendarHelpModal() {
+  document.querySelector('.calendar-help-modal-overlay')?.remove()
+}
+
+function openCalendarHelpModal(signal) {
+  closeCalendarHelpModal()
+
+  const origin = window.location.origin
+  const caldavUrl = `${origin}/caldav/`
+  const username = getState().currentUser?.username || 'owner'
+  const overlay = document.createElement('div')
+  overlay.className = 'modal-overlay calendar-help-modal-overlay'
+  overlay.innerHTML = `
+    <div class="modal-inner help-modal-inner" role="dialog" aria-modal="true" aria-labelledby="calendar-help-title">
+      <div class="account-modal-header">
+        <div>
+          <div class="modal-title" id="calendar-help-title">日历同步说明</div>
+          <div class="subscription-warning">请使用手机浏览器访问当前地址后再复制</div>
+        </div>
+        <button class="btn ghost" id="calendar-help-close" type="button">关闭</button>
+      </div>
+
+      <section class="help-section">
+        <div class="help-section-title">只读订阅（ICS）</div>
+        <ol class="help-list">
+          <li>点击“获取新链接”创建订阅链接。</li>
+          <li>点击“复制链接”，把完整 ICS 地址粘贴到手机日历。</li>
+          <li>iOS：设置 → 日历 → 账户 → 添加账户 → 其他 → 添加订阅日历。</li>
+          <li>Android：在系统日历中选择“添加订阅日历”或“从 URL 添加”。</li>
+        </ol>
+      </section>
+
+      <section class="help-section">
+        <div class="help-section-title">双向同步（CalDAV）</div>
+        <div class="help-address-row">
+          <code class="help-address" id="caldav-address">${escapeHtml(caldavUrl)}</code>
+          <button class="btn ghost" type="button" data-copy-caldav>复制</button>
+        </div>
+        <ol class="help-list">
+          <li>iOS：添加账户时选择“其他 → 添加 CalDAV 账户”。</li>
+          <li>服务器地址填主机名（如 <code>localhost</code> 或局域网 IP）；服务器路径填 <code>/caldav/</code>。</li>
+          <li>本地开发端口填 <code>5174</code>，关闭 SSL；生产环境按部署地址和 HTTPS 配置填写。</li>
+          <li>用户名填 <strong>${escapeHtml(username)}</strong>，密码填 Timeline 账号密码。</li>
+          <li>Android：在支持 CalDAV 的日历应用或同步工具中添加账户。</li>
+          <li>保存后同步 Timeline 与手机日历；支持新增、修改、删除全天事件。</li>
+        </ol>
+        <p class="help-note">Timeline 仅映射全天事件；多日事件会拆成多天记录，重复规则暂不支持。</p>
+      </section>
+    </div>
+  `
+  document.body.appendChild(overlay)
+
+  const close = () => closeCalendarHelpModal()
+  overlay.querySelector('#calendar-help-close').addEventListener('click', close)
+  overlay.addEventListener('click', (event) => {
+    if (event.target === overlay) close()
+  })
+  overlay.addEventListener('click', async (event) => {
+    const button = event.target.closest('[data-copy-caldav]')
+    if (!button) return
+    try {
+      await navigator.clipboard.writeText(caldavUrl)
+      showToast('CalDAV 地址已复制')
+    } catch (e) {
+      await showPrompt({
+        title: '请手动复制 CalDAV 地址',
+        defaultValue: caldavUrl,
+        confirmText: '关闭'
+      })
+    }
+  })
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') close()
+  }, { signal })
+}
+
+function openAccountModal(signal) {
+  closeAccountModal()
+
+  const overlay = document.createElement('div')
+  overlay.className = 'modal-overlay account-modal-overlay'
+  overlay.innerHTML = `
+    <div class="modal-inner account-modal-inner" role="dialog" aria-modal="true" aria-labelledby="account-modal-title">
+      <div class="account-modal-header">
+        <div>
+          <div class="modal-title" id="account-modal-title">账号管理</div>
+          <div class="subscription-warning">
+            全局最多 2 个账号；删除账号不会删除见面记录
+          </div>
+        </div>
+        <button class="btn ghost" id="account-modal-close" type="button">关闭</button>
+      </div>
+      <div class="account-modal-list" id="account-modal-list"></div>
+      <div class="account-modal-footer">
+        <button class="btn" id="account-modal-create" type="button">新增账号</button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(overlay)
+
+  const close = () => closeAccountModal()
+  overlay.querySelector('#account-modal-close').addEventListener('click', close)
+  overlay.addEventListener('click', (event) => {
+    if (event.target === overlay) close()
+  })
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') close()
+  }, { signal })
+
+  overlay.querySelector('#account-modal-create').addEventListener('click', async (event) => {
+    const createButton = event.currentTarget
+    const values = await showMultiPrompt({
+      title: '新增账号',
+      fields: [
+        { label: '用户名', type: 'text', placeholder: '2-32个字符' },
+        { label: '密码', type: 'password', placeholder: '至少6个字符' },
+        { label: '确认密码', type: 'password', placeholder: '再次输入新密码' }
+      ]
+    })
+    if (!values) return
+
+    const [username, password, confirmPassword] = values
+    if (!username || !password || password.length < 6) {
+      await showAlert('请输入用户名，且密码至少需要6个字符')
+      return
+    }
+    if (password !== confirmPassword) {
+      await showAlert('两次输入的密码不一致')
+      return
+    }
+
+    createButton.disabled = true
+    try {
+      await accountsAPI.create(username, password)
+      await reloadAccounts()
+      showToast('账号已创建')
+    } catch (err) {
+      if (err?.status === 401) {
+        close()
+        showLogin(() => createApp())
+      } else {
+        showToast(err.message || '创建失败', 'error')
+      }
+    } finally {
+      createButton.disabled = false
+    }
+  })
+
+  overlay.querySelector('.account-modal-list').addEventListener('click', async (event) => {
+    const button = event.target.closest('button[data-action]')
+    if (!button) return
+
+    const account = getState().accounts.find(
+      item => item.id === Number(button.dataset.id)
+    )
+    if (!account) return
+    const action = button.dataset.action
+
+    if (action === 'password') {
+      const values = await showMultiPrompt({
+        title: `修改 ${account.username} 的密码`,
+        fields: [
+          { label: '当前密码', type: 'password', placeholder: '请输入当前密码' },
+          { label: '新密码', type: 'password', placeholder: '至少6个字符' },
+          { label: '确认新密码', type: 'password', placeholder: '再次输入新密码' }
+        ]
+      })
+      if (!values) return
+
+      const [currentPassword, newPassword, confirmPassword] = values
+      if (!currentPassword || !newPassword || newPassword.length < 6) {
+        await showAlert('请输入当前密码，且新密码至少需要6个字符')
+        return
+      }
+      if (newPassword !== confirmPassword) {
+        await showAlert('两次输入的新密码不一致')
+        return
+      }
+
+      try {
+        await settingsAPI.changePassword(currentPassword, newPassword)
+        closeAccountModal()
+        showToast('密码已修改')
+        await render(true)
+      } catch (err) {
+        if (err?.status === 401) {
+          close()
+          showLogin(() => createApp())
+        } else {
+          await showAlert(err.message || '修改失败')
+        }
+      }
+      return
+    }
+
+    if (action === 'delete') {
+      const confirmed = await showConfirm(
+        `确定删除账号「${account.username}」吗？账号的订阅链接会一起删除，见面记录会保留。`,
+        '删除账号'
+      )
+      if (!confirmed) return
+
+      try {
+        const result = await accountsAPI.delete(account.id)
+        if (result.deletedSelf) {
+          close()
+          showLogin(() => createApp())
+          return
+        }
+        await reloadAccounts()
+        showToast('账号已删除')
+      } catch (err) {
+        if (err?.status === 401) {
+          close()
+          showLogin(() => createApp())
+        } else {
+          showToast(err.message || '删除失败', 'error')
+        }
+      }
+    }
+  })
+
+  reloadAccounts().catch(err => {
+    if (err?.status === 401) {
+      close()
+      showLogin(() => createApp())
+    } else {
+      showToast(err.message || '加载账号失败', 'error')
+    }
+  })
+}
+
+async function copySubscriptionUrl(subscription) {
+  const url = getSubscriptionUrl(subscription)
+  try {
+    await navigator.clipboard.writeText(url)
+    showToast('订阅链接已复制')
+  } catch (e) {
+    await showPrompt({
+      title: '请手动复制订阅链接',
+      defaultValue: url,
+      confirmText: '关闭'
+    })
+  }
+}
+
+async function reloadSubscriptions() {
+  const data = await subscriptionsAPI.getAll()
+  setState({ subscriptions: data.subscriptions || [] })
+  renderSubscriptions()
 }
 
 // 事件监听器管理
@@ -163,6 +539,10 @@ async function changeRequiredPassword() {
  */
 async function createApp() {
   const root = document.getElementById('app')
+  const isLocalHost = ['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)
+  const subscriptionWarning = isLocalHost
+    ? '手机日历无法访问 localhost，请改用局域网 IP 或公网域名'
+    : '请勿将订阅链接转发给无关人员'
 
   // 验证登录状态，并复用这次设置请求，避免启动时重复请求
   let initialSettings = null
@@ -191,10 +571,26 @@ async function createApp() {
         <div class="big-counter" id="days-counter">0 天</div>
         <div class="muted">从第一次相遇算起</div>
         <div class="header-actions">
+          <button class="btn ghost admin" id="accounts-entry" aria-haspopup="dialog">账号管理</button>
           <button class="btn ghost" id="change-pass">修改密码</button>
           <button class="btn ghost" id="logout">登出</button>
         </div>
+
       </div>
+    </div>
+
+    <div class="panel subscription-panel">
+      <div class="subscription-header">
+        <div>
+          <div class="subscription-title-row">
+            <div class="subscription-title">日历订阅</div>
+            <button class="help-button" id="calendar-help" type="button" aria-haspopup="dialog" aria-label="查看日历订阅和 CalDAV 使用说明">?</button>
+          </div>
+              <div class="subscription-warning">${escapeHtml(subscriptionWarning)}</div>
+        </div>
+        <button class="btn" id="create-subscription">获取新链接</button>
+      </div>
+      <div id="subscription-list"></div>
     </div>
 
     <div class="grid">
@@ -216,17 +612,18 @@ async function createApp() {
         <div class="panel story-panel" style="text-align:center;position:relative;overflow:visible;height:100%">
           <div style="font-weight:700;color:var(--accent);font-size:18px">我们的故事</div>
           <div style="margin-top:12px;color:var(--muted)">每一次相聚，都是我最想收藏的日子。</div>
-          <div style="margin-top:20px">
-            <div class="count-wrap" style="display:inline-block;padding:8px 18px;border-radius:6px;position:relative;z-index:4;">
-              <div class="muted" style="text-align:center">总次数</div>
-              <div id="total-count" style="font-size:34px;font-weight:800;color:#c9184f;text-align:center">0</div>
+          <div class="count-block">
+            <div class="count-wrap">
+              <div class="muted count-label">总次数</div>
+              <div id="total-count" class="count-value">0</div>
             </div>
           </div>
-          <div style="margin-top:18px">
+          <div class="story-actions">
             <button class="btn" id="celebrate">为她点个心</button>
             <button class="btn ghost" id="set-first" style="margin-left:10px">设初次见面</button>
           </div>
         </div>
+
       </div>
     </div>
 
@@ -251,6 +648,7 @@ async function createApp() {
  */
 function bindEvents(signal) {
   const form = document.getElementById('meet-form')
+  const accountsEntryBtn = document.getElementById('accounts-entry')
   const celebrateBtn = document.getElementById('celebrate')
   const setFirstBtn = document.getElementById('set-first')
   const changePassBtn = document.getElementById('change-pass')
@@ -337,6 +735,85 @@ function bindEvents(signal) {
   celebrateBtn.addEventListener('click', () => {
     burstHearts()
   })
+
+  accountsEntryBtn.addEventListener('click', () => {
+    openAccountModal(signal)
+  }, { signal })
+
+  const calendarHelpButton = document.getElementById('calendar-help')
+  calendarHelpButton.addEventListener('click', () => {
+    openCalendarHelpModal(signal)
+  }, { signal })
+
+  // 日历订阅
+  const createSubscriptionBtn = document.getElementById('create-subscription')
+  const subscriptionList = document.getElementById('subscription-list')
+
+  createSubscriptionBtn.addEventListener('click', async () => {
+    createSubscriptionBtn.disabled = true
+    try {
+      await subscriptionsAPI.create()
+      await reloadSubscriptions()
+      showToast('订阅链接已创建')
+    } catch (err) {
+      if (err?.status === 401) {
+        showLogin(() => createApp())
+      } else {
+        showToast(err.message || '创建失败', 'error')
+      }
+    } finally {
+      createSubscriptionBtn.disabled = false
+    }
+  }, { signal })
+
+  subscriptionList.addEventListener('click', async (event) => {
+    const button = event.target.closest('button[data-action]')
+    if (!button) return
+
+    const subscription = getState().subscriptions.find(
+      item => item.id === Number(button.dataset.id)
+    )
+    if (!subscription) return
+
+    try {
+      const action = button.dataset.action
+      if (action === 'copy') {
+        await copySubscriptionUrl(subscription)
+        return
+      }
+
+      if (action === 'rename') {
+        const name = await showPrompt({
+          title: '重命名订阅链接',
+          defaultValue: subscription.name,
+          placeholder: '手机日历'
+        })
+        if (!name) return
+        await subscriptionsAPI.update(subscription.id, { name })
+      }
+
+      if (action === 'toggle') {
+        await subscriptionsAPI.update(subscription.id, { enabled: !subscription.enabled })
+      }
+
+      if (action === 'delete') {
+        const confirmed = await showConfirm(
+          `确定删除「${subscription.name}」吗？旧链接将立即失效。`,
+          '删除订阅'
+        )
+        if (!confirmed) return
+        await subscriptionsAPI.delete(subscription.id)
+      }
+
+      await reloadSubscriptions()
+    } catch (err) {
+      if (err?.status === 401) {
+        showLogin(() => createApp())
+      } else {
+        showToast(err.message || '操作失败', 'error')
+      }
+    }
+  }, { signal })
 
   // 设置初次见面
   setFirstBtn.addEventListener('click', async () => {

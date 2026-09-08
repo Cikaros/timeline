@@ -118,19 +118,69 @@ export const settingsAPI = {
   },
 
   async changePassword(oldPassword, newPassword) {
-    const response = await apiFetch('/api/password', {
+    const response = await apiFetch('/api/accounts/password', {
       method: 'POST',
-      body: JSON.stringify({ oldPassword, newPassword })
+      body: JSON.stringify({ currentPassword: oldPassword, newPassword })
     })
     return response.json()
   }
 }
 
+export const accountsAPI = {
+  async getAll() {
+    const response = await apiFetch('/api/accounts')
+    return response.json()
+  },
+
+  create(username, password) {
+    return apiFetch('/api/accounts', {
+      method: 'POST',
+      body: JSON.stringify({ username, password })
+    })
+  },
+
+  async delete(id) {
+    const response = await apiFetch(`/api/accounts/${id}`, {
+      method: 'DELETE'
+    })
+    return response.json()
+  }
+}
+
+export const subscriptionsAPI = {
+  async getAll() {
+    const response = await apiFetch('/api/calendar-subscriptions')
+    return response.json()
+  },
+
+  create(name) {
+    return apiFetch('/api/calendar-subscriptions', {
+      method: 'POST',
+      body: JSON.stringify(name ? { name } : {})
+    })
+  },
+
+  update(id, updates) {
+    return apiFetch(`/api/calendar-subscriptions/${id}`, {
+      method: 'POST',
+      body: JSON.stringify(updates)
+    })
+  },
+
+  async delete(id) {
+    const response = await apiFetch(`/api/calendar-subscriptions/${id}`, {
+      method: 'DELETE'
+    })
+    if (response.status === 204) return { ok: true }
+    return response.json()
+  }
+}
+
 export const authAPI = {
-  login: (password) =>
+  login: (username, password) =>
     apiFetch('/api/login', {
       method: 'POST',
-      body: JSON.stringify({ password }),
+      body: JSON.stringify({ username, password }),
       skipAuthCheck: true
     }),
 

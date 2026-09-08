@@ -1,4 +1,5 @@
 import { getCorsHeaders } from '../middleware/cors.js'
+import { getCurrentUser } from '../middleware/auth.js'
 import { jsonResponse, errorResponse } from '../utils/response.js'
 import { getSettings, setFirstMeeting } from '../services/settings.service.js'
 import { setFirstMeetingSchema } from '../validators/settings.validator.js'
@@ -7,7 +8,12 @@ export const settingsController = {
   getSettings(req) {
     const corsHeaders = getCorsHeaders(req)
     const settings = getSettings()
-    return jsonResponse(settings, 200, corsHeaders)
+    const user = getCurrentUser(req)
+    return jsonResponse(
+      { ...settings, current_user: user ? { id: user.userId, username: user.username } : null },
+      200,
+      corsHeaders
+    )
   },
 
   async setFirstMeeting(req) {
