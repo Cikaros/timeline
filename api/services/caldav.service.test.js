@@ -98,6 +98,23 @@ describe('CalDAV service', () => {
     expect(discoveryBody).toContain('<D:displayname>Timeline</D:displayname>')
     expect(discoveryBody).toContain('/caldav/calendars/owner/')
 
+    const defaultNamespaceDiscovery = await handleCalDav(
+      new Request('http://localhost/caldav/', {
+        method: 'PROPFIND',
+        headers: { ...basicAuth(), Depth: '0', 'Content-Type': 'application/xml' },
+        body: '<?xml version="1.0" encoding="UTF-8"?><propfind xmlns="DAV:"><prop><current-user-principal /></prop></propfind>'
+      }),
+      context,
+      { database, prepared }
+    )
+    expect(defaultNamespaceDiscovery.status).toBe(207)
+    const defaultNamespaceBody = await defaultNamespaceDiscovery.text()
+    expect(defaultNamespaceBody).toContain('<D:current-user-principal>')
+    expect(defaultNamespaceBody).toContain(
+      '<D:href>http://localhost/caldav/principal/owner/</D:href>'
+    )
+    expect(defaultNamespaceBody).not.toContain('<D:prop>\n        \n      </D:prop>')
+
     const principal = await handleCalDav(
       new Request('http://localhost/caldav/principal/owner/', {
         method: 'PROPFIND',
@@ -110,6 +127,26 @@ describe('CalDAV service', () => {
     expect(principalBody).toContain('<C:calendar-home-set>')
     expect(principalBody).toContain('<D:calendar-user-address-set>')
     expect(principalBody).toContain('<D:displayname>Timeline</D:displayname>')
+
+    const oppoPrincipal = await handleCalDav(
+      new Request('http://localhost/caldav/principal/owner/', {
+        method: 'PROPFIND',
+        headers: { ...basicAuth(), Depth: '0', 'Content-Type': 'application/xml; charset=utf-8' },
+        body: [
+          '<?xml version=\'1.0\' encoding=\'UTF-8\' ?>',
+          '<propfind xmlns="DAV:" xmlns:CAL="urn:ietf:params:xml:ns:caldav" xmlns:CARD="urn:ietf:params:xml:ns:carddav">',
+          '<prop><displayname /><CAL:calendar-home-set /><group-membership /></prop>',
+          '</propfind>'
+        ].join('')
+      }),
+      { method: 'PROPFIND', pathname: '/caldav/principal/owner/' },
+      { database, prepared }
+    )
+    expect(oppoPrincipal.status).toBe(207)
+    const oppoPrincipalBody = await oppoPrincipal.text()
+    expect(oppoPrincipalBody).toContain('<D:displayname>Timeline</D:displayname>')
+    expect(oppoPrincipalBody).toContain('<C:calendar-home-set>')
+    expect(oppoPrincipalBody).toContain('<D:group-membership/>')
 
     const propPatch = await handleCalDav(
       new Request('http://localhost/caldav/calendars/owner/', {
@@ -128,6 +165,56 @@ describe('CalDAV service', () => {
     expect(propPatch.status).toBe(207)
     expect(await propPatch.text()).toContain('<C:calendar-color>')
 
+    const home = await handleCalDav(
+      new Request('http://localhost/caldav/calendars/owner/', {
+        method: 'PROPFIND',
+        headers: { ...basicAuth(), Depth: '1' }
+      }),
+      { method: 'PROPFIND', pathname: '/caldav/calendars/owner/' },
+      { database, prepared }
+    )
+    expect(home.status).toBe(207)
+    const homeBody = await home.text()
+    expect(homeBody).toContain('<D:href>http://localhost/caldav/calendars/owner/</D:href>')
+    expect(homeBody).toContain('<D:resourcetype><D:collection/></D:resourcetype>')
+    expect(homeBody).toContain('/caldav/calendars/owner/timeline/')
+
+    const timelineCollection = await handleCalDav(
+      new Request('http://localhost/caldav/calendars/owner/timeline/', {
+        method: 'PROPFIND',
+        headers: { ...basicAuth(), Depth: '0' }
+      }),
+      { method: 'PROPFIND', pathname: '/caldav/calendars/owner/timeline/' },
+      { database, prepared }
+    )
+    expect(timelineCollection.status).toBe(207)
+    const timelineBody = await timelineCollection.text()
+    expect(timelineBody).toContain('<D:resourcetype><D:collection/><C:calendar/></D:resourcetype>')
+    expect(timelineBody).toContain('<C:supported-calendar-component-set>')
+    expect(timelineBody).toContain('<D:privilege><D:read/></D:privilege>')
+    expect(timelineBody).toContain('<D:privilege><D:write/></D:privilege>')
+    expect(timelineBody).toContain('<C:calendar-multiget/>')
+
+    const requestedTimelineCollection = await handleCalDav(
+      new Request('http://localhost/caldav/calendars/owner/timeline/', {
+        method: 'PROPFIND',
+        headers: { ...basicAuth(), Depth: '0', 'Content-Type': 'application/xml' },
+        body: [
+          '<?xml version="1.0" encoding="utf-8"?>',
+          '<D:propfind xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">',
+          '  <D:prop><D:resourcetype><D:collection/></D:resourcetype><C:supported-calendar-component-set/></D:prop>',
+          '</D:propfind>'
+        ].join('')
+      }),
+      { method: 'PROPFIND', pathname: '/caldav/calendars/owner/timeline/' },
+      { database, prepared }
+    )
+    const requestedTimelineBody = await requestedTimelineCollection.text()
+    expect(requestedTimelineBody).toContain('<D:resourcetype><D:collection/><C:calendar/></D:resourcetype>')
+    expect(requestedTimelineBody).toContain('<C:supported-calendar-component-set>')
+    expect(requestedTimelineBody).not.toContain('<D:displayname>')
+    expect(requestedTimelineBody).not.toContain('<CS:getctag>')
+
     const collection = await handleCalDav(
       new Request('http://localhost/caldav/calendars/owner/', {
         method: 'PROPFIND',
@@ -138,19 +225,30 @@ describe('CalDAV service', () => {
     )
     expect(collection.status).toBe(207)
     const collectionBody = await collection.text()
-    expect(collectionBody).toContain('legacy@timeline')
+    expect(collectionBody).toContain('/caldav/calendars/owner/timeline/')
     expect(collectionBody).toContain('<D:current-user-principal>')
     expect(collectionBody).toContain('<D:principal-URL>')
     expect(collectionBody).toContain('<C:calendar-home-set>')
     expect(collectionBody).toContain('<D:displayname>Timeline</D:displayname>')
     expect(collectionBody).toContain('/caldav/principal/owner/')
 
-    const shortCollection = await handleCalDav(
+    const shortHome = await handleCalDav(
       new Request('http://localhost/caldav/owner/', {
         method: 'PROPFIND',
         headers: { ...basicAuth(), Depth: '1' }
       }),
       { method: 'PROPFIND', pathname: '/caldav/owner/' },
+      { database, prepared }
+    )
+    expect(shortHome.status).toBe(207)
+    expect(await shortHome.text()).toContain('/caldav/calendars/owner/timeline/')
+
+    const shortCollection = await handleCalDav(
+      new Request('http://localhost/caldav/owner/timeline/', {
+        method: 'PROPFIND',
+        headers: { ...basicAuth(), Depth: '1' }
+      }),
+      { method: 'PROPFIND', pathname: '/caldav/owner/timeline/' },
       { database, prepared }
     )
     expect(shortCollection.status).toBe(207)
@@ -203,8 +301,28 @@ describe('CalDAV service', () => {
     expect(fetchedEventBody).toContain('BEGIN:VCALENDAR')
     expect(fetchedEventBody).toContain('END:VCALENDAR')
     expect(fetchedEventBody).toContain('SUMMARY:见面：Dinner\\, movie')
+    expect(fetchedEventBody).not.toContain('METHOD:')
 
     const multiget = await handleCalDav(
+      new Request('http://localhost/caldav/calendars/owner/', {
+        method: 'REPORT',
+        headers: { ...basicAuth(), 'Content-Type': 'application/xml' },
+        body: [
+          '<?xml version="1.0" encoding="utf-8"?>',
+          '<C:calendar-multiget xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">',
+          '  <D:href>/caldav/calendars/owner/new-event%40calendar.ics</D:href>',
+          '</C:calendar-multiget>'
+        ].join('\r\n')
+      }),
+      { method: 'REPORT', pathname: '/caldav/calendars/owner/timeline/' },
+      { database, prepared }
+    )
+    expect(multiget.status).toBe(207)
+    const multigetBody = await multiget.text()
+    expect(multigetBody).toContain('new-event%40calendar.ics')
+    expect(multigetBody).toContain('/caldav/calendars/owner/timeline/')
+
+    const legacyMultiget = await handleCalDav(
       new Request('http://localhost/caldav/calendars/owner/', {
         method: 'REPORT',
         headers: { ...basicAuth(), 'Content-Type': 'application/xml' },
@@ -218,8 +336,8 @@ describe('CalDAV service', () => {
       { method: 'REPORT', pathname: '/caldav/calendars/owner/' },
       { database, prepared }
     )
-    expect(multiget.status).toBe(207)
-    expect(await multiget.text()).toContain('new-event%40calendar.ics')
+    expect(legacyMultiget.status).toBe(207)
+    expect(await legacyMultiget.text()).toContain('new-event%40calendar.ics')
 
     const deleted = await handleCalDav(
       new Request('http://localhost/caldav/calendars/owner/new-event%40calendar.ics', {

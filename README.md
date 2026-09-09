@@ -65,6 +65,7 @@ docker compose up -d
 | `SESSION_DURATION` | 会话有效期，单位毫秒，默认 24 小时 |
 | `DEFAULT_PASSWORD` | 首次初始化时使用的默认密码 |
 | `ALLOWED_ORIGINS` | 额外允许的跨域 Origin，多个值用英文逗号分隔 |
+| `PUBLIC_BASE_URL` | 反向代理后的公网地址，CalDAV 发现阶段用于生成完整 principal URL |
 
 `ALLOWED_ORIGINS` 必须填写浏览器地址栏里的完整 Origin，例如
 `https://timeline.example.com`，不要带路径和结尾斜杠。
@@ -144,7 +145,8 @@ https://<你的访问地址>/caldav/
 | --- | --- |
 | `/.well-known/caldav` | CalDAV 自动发现入口 |
 | `/caldav/` | CalDAV 服务根路径 |
-| `/caldav/calendars/<username>/` | Timeline 日历集合 |
+| `/caldav/calendars/<username>/` | Timeline 日历主页 |
+| `/caldav/calendars/<username>/timeline/` | Timeline 日历集合 |
 
 macOS 自带日历不允许 HTTP 携带 Basic 认证；本地同步必须使用 `bun run cert:dev` 生成证书、`bun run dev:https` 启动 Vite HTTPS 服务，并将 `.certs/localhost-cert.pem` 加入钥匙串信任。CalDAV 字段填：服务器地址 `localhost`、服务器路径 `/caldav/`、端口 `5174`、开启 SSL、关闭 Kerberos v5。
 
