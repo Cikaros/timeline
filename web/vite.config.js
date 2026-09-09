@@ -1,5 +1,21 @@
 // web/vite.config.js
+import { existsSync, readFileSync } from 'node:fs'
 import { defineConfig } from 'vite'
+
+function loadLocalHttpsConfig() {
+  if (process.env.HTTPS !== '1') return undefined
+
+  const keyPath = new URL('../.certs/localhost-key.pem', import.meta.url)
+  const certPath = new URL('../.certs/localhost-cert.pem', import.meta.url)
+  if (!existsSync(keyPath) || !existsSync(certPath)) {
+    throw new Error('未找到本地 HTTPS 证书：请先运行 bun run cert:dev')
+  }
+
+  return {
+    key: readFileSync(keyPath),
+    cert: readFileSync(certPath)
+  }
+}
 
 export default defineConfig({
   // 强制以当前web文件夹为Vite工作根目录（解决所有路径问题）
@@ -16,6 +32,8 @@ export default defineConfig({
 
   server: {
     port: 5174,
+    host: process.env.HOST || 'localhost',
+    https: loadLocalHttpsConfig(),
     // 自动打开浏览器
     open: true,
     proxy: {

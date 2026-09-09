@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite --config web/vite.config.js",
+    "dev:https": "HTTPS=1 vite --config web/vite.config.js",
+    "cert:dev": "mkdir -p .certs && openssl req -x509 -newkey rsa:2048 -sha256 -nodes -days 825 -keyout .certs/localhost-key.pem -out .certs/localhost-cert.pem -subj '/CN=Timeline Dev' -addext 'subjectAltName=DNS:localhost,IP:127.0.0.1,IP:::1' -addext 'basicConstraints=critical,CA:TRUE' -addext 'keyUsage=critical,keyCertSign,cRLSign,digitalSignature,keyEncipherment' -addext 'extendedKeyUsage=serverAuth'",
     "api": "bun run api/server.js",
     "build": "vite build --config web/vite.config.js",
     "preview": "vite preview --config web/vite.config.js",

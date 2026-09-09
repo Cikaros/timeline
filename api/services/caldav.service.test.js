@@ -92,7 +92,11 @@ describe('CalDAV service', () => {
       { database, prepared }
     )
     expect(collection.status).toBe(207)
-    expect(await collection.text()).toContain('legacy@timeline')
+    const collectionBody = await collection.text()
+    expect(collectionBody).toContain('legacy@timeline')
+    expect(collectionBody).toContain('<D:current-user-principal>')
+    expect(collectionBody).toContain('<D:principal-URL>')
+    expect(collectionBody).toContain('/caldav/principal/owner/')
 
     const shortCollection = await handleCalDav(
       new Request('http://localhost/caldav/owner/', {
@@ -139,6 +143,36 @@ describe('CalDAV service', () => {
     )
     expect(updated.status).toBe(204)
     expect(prepared.getCalDavMeetings.all().find(row => row.uid === 'new-event@calendar').note).toBe('Dinner, movie')
+
+    const fetchedEvent = await handleCalDav(
+      new Request('http://localhost/caldav/calendars/owner/new-event%40calendar.ics', {
+        headers: basicAuth()
+      }),
+      { method: 'GET', pathname: '/caldav/calendars/owner/new-event%40calendar.ics' },
+      { database, prepared }
+    )
+    expect(fetchedEvent.status).toBe(200)
+    const fetchedEventBody = await fetchedEvent.text()
+    expect(fetchedEventBody).toContain('BEGIN:VCALENDAR')
+    expect(fetchedEventBody).toContain('END:VCALENDAR')
+    expect(fetchedEventBody).toContain('SUMMARY:见面：Dinner\\, movie')
+
+    const multiget = await handleCalDav(
+      new Request('http://localhost/caldav/calendars/owner/', {
+        method: 'REPORT',
+        headers: { ...basicAuth(), 'Content-Type': 'application/xml' },
+        body: [
+          '<?xml version="1.0" encoding="utf-8"?>',
+          '<C:calendar-multiget xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">',
+          '  <D:href>/caldav/calendars/owner/new-event%40calendar.ics</D:href>',
+          '</C:calendar-multiget>'
+        ].join('\r\n')
+      }),
+      { method: 'REPORT', pathname: '/caldav/calendars/owner/' },
+      { database, prepared }
+    )
+    expect(multiget.status).toBe(207)
+    expect(await multiget.text()).toContain('new-event%40calendar.ics')
 
     const deleted = await handleCalDav(
       new Request('http://localhost/caldav/calendars/owner/new-event%40calendar.ics', {

@@ -160,6 +160,7 @@ export function listSubscriptionTokens(dependencies = {}) {
 
 export {
   buildIcs,
+  foldIcsLine,
   groupIcsMeetings,
   formatIcsDate,
   parseUtcDate,

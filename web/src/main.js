@@ -256,7 +256,7 @@ function openCalendarHelpModal(signal) {
       <div class="account-modal-header">
         <div>
           <div class="modal-title" id="calendar-help-title">日历同步说明</div>
-          <div class="subscription-warning">请使用手机浏览器访问当前地址后再复制</div>
+          <div class="subscription-warning">请在要添加日历的设备上访问当前地址后再复制</div>
         </div>
         <button class="btn ghost" id="calendar-help-close" type="button">关闭</button>
       </div>
@@ -277,14 +277,43 @@ function openCalendarHelpModal(signal) {
           <code class="help-address" id="caldav-address">${escapeHtml(caldavUrl)}</code>
           <button class="btn ghost" type="button" data-copy-caldav>复制</button>
         </div>
+        <p class="help-note">macOS 自带日历不允许 HTTP + Basic 认证，必须使用 HTTPS。自动发现入口是 <code>/.well-known/caldav/</code>；手动填写时优先使用下方服务器路径。</p>
         <ol class="help-list">
-          <li>iOS：添加账户时选择“其他 → 添加 CalDAV 账户”。</li>
-          <li>服务器地址填主机名（如 <code>localhost</code> 或局域网 IP）；服务器路径填 <code>/caldav/</code>。</li>
-          <li>本地开发端口填 <code>5174</code>，关闭 SSL；生产环境按部署地址和 HTTPS 配置填写。</li>
-          <li>用户名填 <strong>${escapeHtml(username)}</strong>，密码填 Timeline 账号密码。</li>
+          <li>macOS：日历 → 设置 → 账户 → 添加其他日历账户 → CalDAV 账户。</li>
+          <li>iOS：设置 → 日历 → 账户 → 添加账户 → 其他 → 添加 CalDAV 账户。</li>
           <li>Android：在支持 CalDAV 的日历应用或同步工具中添加账户。</li>
           <li>保存后同步 Timeline 与手机日历；支持新增、修改、删除全天事件。</li>
         </ol>
+        <dl class="help-fields">
+          <div>
+            <dt>用户名</dt>
+            <dd>填 Timeline 登录名，当前是 <strong>${escapeHtml(username)}</strong>；不要填邮箱。</dd>
+          </div>
+          <div>
+            <dt>密码</dt>
+            <dd>填这个 Timeline 账号的密码；不是 Mac 或 iCloud 密码。</dd>
+          </div>
+          <div>
+            <dt>服务器地址</dt>
+            <dd>只填主机名或 IP，例如 <code>localhost</code>、<code>192.168.1.20</code> 或 <code>timeline.example.com</code>；不要加 <code>http://</code>、端口或路径。</dd>
+          </div>
+          <div>
+            <dt>服务器路径</dt>
+            <dd>填 <code>/caldav/</code>，保留结尾斜杠。</dd>
+          </div>
+          <div>
+            <dt>端口</dt>
+            <dd>按当前地址填：本地 macOS 同步使用 HTTPS 开发服务 <code>5174</code>；生产环境 HTTPS 通常 <code>443</code>；自部署时使用实际暴露的端口。</dd>
+          </div>
+          <div>
+            <dt>使用 SSL</dt>
+            <dd>macOS 自带日历必须开启。当前页面是 <code>https://</code> 才能验证账户；本地开发使用 <code>https://localhost:5174</code>。</dd>
+          </div>
+          <div>
+            <dt>使用 Kerberos v5 进行认证</dt>
+            <dd>关闭。Timeline 使用 HTTP Basic 认证，不支持 Kerberos。</dd>
+          </div>
+        </dl>
         <p class="help-note">Timeline 仅映射全天事件；多日事件会拆成多天记录，重复规则暂不支持。</p>
       </section>
     </div>

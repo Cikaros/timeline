@@ -18,6 +18,10 @@ bun install
 # 启动前端开发服务器 (Vite, 端口 5174)
 bun run dev
 
+# 启动 macOS 日历同步用的 HTTPS 开发服务器 (端口 5174)
+bun run cert:dev
+bun run dev:https
+
 # 启动后端 API (Bun, 端口 3000)
 bun run api
 
@@ -120,7 +124,7 @@ docker compose up -d
 CalDAV 服务端地址：
 
 ```text
-http://<你的访问地址>/caldav/
+https://<你的访问地址>/caldav/
 ```
 
 账号信息：
@@ -135,6 +139,8 @@ http://<你的访问地址>/caldav/
 | `/.well-known/caldav` | CalDAV 自动发现入口 |
 | `/caldav/` | CalDAV 服务根路径 |
 | `/caldav/calendars/<username>/` | Timeline 日历集合 |
+
+macOS 自带日历不允许 HTTP 携带 Basic 认证；本地同步必须使用 `bun run cert:dev` 生成证书、`bun run dev:https` 启动 Vite HTTPS 服务，并将 `.certs/localhost-cert.pem` 加入钥匙串信任。CalDAV 字段填：服务器地址 `localhost`、服务器路径 `/caldav/`、端口 `5174`、开启 SSL、关闭 Kerberos v5。
 
 CalDAV 会把 Timeline 的每一天映射为全天事件。客户端新增或修改多日事件时，Timeline 会拆成多天记录；删除事件会删除相同 UID 下的全部日期。仅支持全天事件，不支持重复规则。
 

@@ -568,6 +568,26 @@ input[type="date"]{ padding:8px 10px }
   line-height:1.5;
   color:var(--muted);
 }
+.help-fields{
+  display:grid;
+  gap:10px;
+  margin:14px 0 0;
+}
+.help-fields > div{
+  display:grid;
+  gap:3px;
+}
+.help-fields dt{
+  font-size:13px;
+  font-weight:800;
+  color:var(--accent-strong);
+}
+.help-fields dd{
+  margin:0;
+  font-size:12px;
+  line-height:1.55;
+  color:#444;
+}
 
 @media (max-width: 1024px){
   .account-modal-inner{width:min(560px, 92vw)}

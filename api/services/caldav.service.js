@@ -3,6 +3,7 @@ import {
   buildIcs,
   addDays,
   escapeIcsText,
+  foldIcsLine,
   formatIcsDate,
   parseUtcDate
 } from './ics.service.js'
@@ -81,7 +82,7 @@ function buildEvent(group) {
   const end = parseUtcDate(group.end_date.split('T')[0])
   const note = group.note ? group.note.trim() : ''
   const summary = note ? `见面：${note}` : '见面'
-  return [
+  const event = [
     'BEGIN:VEVENT',
     `UID:${eventUid(group)}`,
     `DTSTAMP:${formatIcsDate(new Date())}T000000Z`,
@@ -91,7 +92,18 @@ function buildEvent(group) {
     'STATUS:CONFIRMED',
     'TRANSP:TRANSPARENT',
     'END:VEVENT'
-  ].join('\r\n') + '\r\n'
+  ]
+
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Timeline//Calendar 1.0//CN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'X-WR-CALNAME:Timeline',
+    ...event,
+    'END:VCALENDAR'
+  ].flatMap(foldIcsLine).join('\r\n') + '\r\n'
 }
 
 function multistatus(responses, syncToken = null) {
@@ -122,13 +134,18 @@ function eventResponse(username, group) {
 }
 
 function principalResponse(username) {
+  const principalHref = `/caldav/principal/${encodeURIComponent(username)}/`
+
   return `  <D:response>
     <D:href>/caldav/</D:href>
     <D:propstat>
       <D:prop>
+        <D:principal-URL><D:href>${xmlEscape(principalHref)}</D:href></D:principal-URL>
         <D:current-user-principal>
-          <D:href>/caldav/principal/${encodeURIComponent(username)}/</D:href>
+          <D:href>${xmlEscape(principalHref)}</D:href>
         </D:current-user-principal>
+        <D:resourcetype><D:principal/></D:resourcetype>
+        <D:display-name>${xmlEscape(username)}</D:display-name>
       </D:prop>
       <D:status>HTTP/1.1 200 OK</D:status>
     </D:propstat>
@@ -136,10 +153,17 @@ function principalResponse(username) {
 }
 
 function homeResponse(username) {
+  const principalHref = `/caldav/principal/${encodeURIComponent(username)}/`
+
   return `  <D:response>
-    <D:href>/caldav/principal/${encodeURIComponent(username)}/</D:href>
+    <D:href>${xmlEscape(principalHref)}</D:href>
     <D:propstat>
       <D:prop>
+        <D:principal-URL><D:href>${xmlEscape(principalHref)}</D:href></D:principal-URL>
+        <D:current-user-principal>
+          <D:href>${xmlEscape(principalHref)}</D:href>
+        </D:current-user-principal>
+        <D:resourcetype><D:principal/></D:resourcetype>
         <D:display-name>${xmlEscape(username)}</D:display-name>
         <C:calendar-home-set>
           <D:href>/caldav/calendars/${encodeURIComponent(username)}/</D:href>
@@ -151,6 +175,7 @@ function homeResponse(username) {
 }
 
 function collectionResponse(username, includeEvents, rows) {
+  const principalHref = `/caldav/principal/${encodeURIComponent(username)}/`
   const groups = groupEvents(rows)
   const eventResponses = includeEvents
     ? groups.map(group => eventResponse(username, group))
@@ -162,6 +187,11 @@ function collectionResponse(username, includeEvents, rows) {
     <D:propstat>
       <D:prop>
         <D:display-name>Timeline</D:display-name>
+        <D:current-user-principal>
+          <D:href>${xmlEscape(principalHref)}</D:href>
+        </D:current-user-principal>
+        <D:principal-URL><D:href>${xmlEscape(principalHref)}</D:href></D:principal-URL>
+        <D:owner><D:href>${xmlEscape(principalHref)}</D:href></D:owner>
         <D:resourcetype><D:collection/><C:calendar/></D:resourcetype>
         <C:supported-calendar-component-set><C:comp name="VEVENT"/></C:supported-calendar-component-set>
         <D:current-user-privilege-set>
@@ -495,9 +525,14 @@ export async function handleCalDav(req, { method, pathname }, dependencies = {})
     let selected = groups
 
     if (body.includes('calendar-multiget')) {
-      const hrefs = [...body.matchAll(/<D:href>([^<]+)<\/D:href>/gi)]
-        .map(match => decodeURIComponent(match[1].trim()))
-      selected = groups.filter(group => hrefs.includes(eventHref(user.username, group)))
+      const hrefs = new Set(
+        [...body.matchAll(/<(?:[A-Za-z0-9_.-]+:)?href\b[^>]*>([^<]+)<\/(?:[A-Za-z0-9_.-]+:)?href>/gi)]
+          .map(match => match[1].trim())
+      )
+      selected = groups.filter(group => {
+        const href = eventHref(user.username, group)
+        return hrefs.has(href) || hrefs.has(decodeURIComponent(href))
+      })
     }
 
     const responses = selected.map(group => eventResponse(user.username, group))

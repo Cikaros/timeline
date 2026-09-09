@@ -16,3 +16,11 @@ CLAUDE.md
 intent.md
 plan.md
 spec.md
+
+# >>> ai-sdlc workspace (runtime + artifacts, do not commit) >>>
+.sdlc/*
+.certs/
+!.sdlc/bands.yaml
+!.sdlc/custom/
+!.sdlc/hooks/
+# <<< ai-sdlc workspace <<<

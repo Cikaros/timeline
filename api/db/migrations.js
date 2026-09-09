@@ -49,16 +49,6 @@ migrations.push({
 })
 
 migrations.push({
-  version: 4,
-  description: '为账号增加管理员角色',
-  up: [
-    "ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'",
-    "UPDATE users SET role = 'admin' WHERE username = 'owner'",
-    'CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)',
-  ],
-})
-
-migrations.push({
   version: 3,
   description: '新增账号与 CalDAV 同步字段',
   up: [
@@ -78,6 +68,16 @@ migrations.push({
     'CREATE INDEX IF NOT EXISTS idx_meetings_uid ON meetings(uid)',
     'CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id)',
     'CREATE INDEX IF NOT EXISTS idx_calendar_subscriptions_user_id ON calendar_subscriptions(user_id)',
+  ],
+})
+
+migrations.push({
+  version: 4,
+  description: '为账号增加管理员角色',
+  up: [
+    "ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'",
+    "UPDATE users SET role = 'admin' WHERE username = 'owner'",
+    'CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)',
   ],
 })
 
