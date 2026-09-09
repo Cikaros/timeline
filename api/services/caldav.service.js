@@ -125,6 +125,8 @@ function eventResponse(username, group) {
     <D:href>${xmlEscape(eventHref(username, group))}</D:href>
     <D:propstat>
       <D:prop>
+        <D:resourcetype/>
+        <D:getcontenttype>text/calendar; charset=utf-8</D:getcontenttype>
         <D:getetag>${xmlEscape(eventEtag(group))}</D:getetag>
         <C:calendar-data>${xmlEscape(buildEvent(group))}</C:calendar-data>
       </D:prop>
@@ -135,6 +137,7 @@ function eventResponse(username, group) {
 
 function principalResponse(username) {
   const principalHref = `/caldav/principal/${encodeURIComponent(username)}/`
+  const homeHref = `/caldav/calendars/${encodeURIComponent(username)}/`
 
   return `  <D:response>
     <D:href>/caldav/</D:href>
@@ -144,8 +147,11 @@ function principalResponse(username) {
         <D:current-user-principal>
           <D:href>${xmlEscape(principalHref)}</D:href>
         </D:current-user-principal>
-        <D:resourcetype><D:principal/></D:resourcetype>
-        <D:display-name>${xmlEscape(username)}</D:display-name>
+        <D:resourcetype><D:collection/></D:resourcetype>
+        <D:displayname>Timeline</D:displayname>
+        <C:calendar-home-set>
+          <D:href>${xmlEscape(homeHref)}</D:href>
+        </C:calendar-home-set>
       </D:prop>
       <D:status>HTTP/1.1 200 OK</D:status>
     </D:propstat>
@@ -163,8 +169,11 @@ function homeResponse(username) {
         <D:current-user-principal>
           <D:href>${xmlEscape(principalHref)}</D:href>
         </D:current-user-principal>
+        <D:calendar-user-address-set>
+          <D:href>${xmlEscape(principalHref)}</D:href>
+        </D:calendar-user-address-set>
         <D:resourcetype><D:principal/></D:resourcetype>
-        <D:display-name>${xmlEscape(username)}</D:display-name>
+        <D:displayname>Timeline</D:displayname>
         <C:calendar-home-set>
           <D:href>/caldav/calendars/${encodeURIComponent(username)}/</D:href>
         </C:calendar-home-set>
@@ -186,13 +195,16 @@ function collectionResponse(username, includeEvents, rows) {
     <D:href>/caldav/calendars/${encodeURIComponent(username)}/</D:href>
     <D:propstat>
       <D:prop>
-        <D:display-name>Timeline</D:display-name>
+        <D:displayname>Timeline</D:displayname>
         <D:current-user-principal>
           <D:href>${xmlEscape(principalHref)}</D:href>
         </D:current-user-principal>
         <D:principal-URL><D:href>${xmlEscape(principalHref)}</D:href></D:principal-URL>
         <D:owner><D:href>${xmlEscape(principalHref)}</D:href></D:owner>
         <D:resourcetype><D:collection/><C:calendar/></D:resourcetype>
+        <C:calendar-home-set>
+          <D:href>/caldav/calendars/${encodeURIComponent(username)}/</D:href>
+        </C:calendar-home-set>
         <C:supported-calendar-component-set><C:comp name="VEVENT"/></C:supported-calendar-component-set>
         <D:current-user-privilege-set>
           <D:privilege><D:read/><D:write/></D:privilege>
@@ -214,6 +226,45 @@ function unauthorized() {
       'Content-Type': 'text/plain; charset=utf-8'
     }
   })
+}
+
+function parsePropPatchProperties(body) {
+  const propMatch = String(body).match(
+    /<([A-Za-z_][\w.-]*?:)?prop(?:\s[^>]*)?>([\s\S]*?)<\/\1?prop\s*>/i
+  )
+  if (!propMatch) return []
+
+  const content = propMatch[2]
+  const tagPattern = /<(\/?)([A-Za-z_][\w.-]*(?::[A-Za-z_][\w.-]*)?)(?:\s[^>]*)?(\/?)>/g
+  const properties = []
+  let depth = 0
+
+  for (const match of content.matchAll(tagPattern)) {
+    const [, closing, name, selfClosing] = match
+
+    if (closing) {
+      depth -= 1
+      continue
+    }
+
+    if (depth === 0) {
+      properties.push(selfClosing ? match[0] : `${match[0]}</${name}>`)
+    }
+
+    if (!selfClosing) depth += 1
+  }
+
+  return properties
+}
+
+function propPatchResponse(username, properties) {
+  return `  <D:response>
+    <D:href>/caldav/calendars/${encodeURIComponent(username)}/</D:href>
+    <D:propstat>
+      <D:prop>${properties.join('')}</D:prop>
+      <D:status>HTTP/1.1 200 OK</D:status>
+    </D:propstat>
+  </D:response>`
 }
 
 function caldavError(status, message) {
@@ -459,7 +510,7 @@ export async function handleCalDav(req, { method, pathname }, dependencies = {})
       status: 200,
       headers: {
         DAV: '1, calendar-access',
-        Allow: 'OPTIONS, GET, HEAD, PROPFIND, REPORT, PUT, DELETE',
+        Allow: 'OPTIONS, GET, HEAD, PROPFIND, PROPPATCH, REPORT, PUT, DELETE',
         'Content-Length': '0'
       }
     })
@@ -540,6 +591,22 @@ export async function handleCalDav(req, { method, pathname }, dependencies = {})
       responses,
       body.includes('sync-collection') ? `timeline-${groups.length}` : null
     )
+  }
+
+  if (method === 'PROPPATCH') {
+    const collectionMatch = normalized.match(/^\/caldav\/calendars\/([^/]+)$/)
+    if (!collectionMatch || decodeURIComponent(collectionMatch[1]) !== user.username) {
+      return caldavError(403, 'Forbidden')
+    }
+
+    const body = await req.text().catch(() => '')
+    const properties = parsePropPatchProperties(body)
+    if (!properties.length) return caldavError(400, 'PROPPATCH 请求格式无效')
+
+    // Apple clients set display-only properties such as calendar color here.
+    // Timeline has one fixed server-owned calendar, so these values are accepted
+    // for the current request but are not persisted.
+    return multistatus([propPatchResponse(user.username, properties)])
   }
 
   const eventMatch = normalized.match(/^\/caldav\/calendars\/([^/]+)\/(.+)\.ics$/)

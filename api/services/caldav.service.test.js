@@ -92,7 +92,41 @@ describe('CalDAV service', () => {
       { database, prepared }
     )
     expect(discovery.status).toBe(207)
-    expect(await discovery.text()).toContain('current-user-principal')
+    const discoveryBody = await discovery.text()
+    expect(discoveryBody).toContain('current-user-principal')
+    expect(discoveryBody).toContain('calendar-home-set')
+    expect(discoveryBody).toContain('<D:displayname>Timeline</D:displayname>')
+    expect(discoveryBody).toContain('/caldav/calendars/owner/')
+
+    const principal = await handleCalDav(
+      new Request('http://localhost/caldav/principal/owner/', {
+        method: 'PROPFIND',
+        headers: basicAuth()
+      }),
+      { method: 'PROPFIND', pathname: '/caldav/principal/owner/' },
+      { database, prepared }
+    )
+    const principalBody = await principal.text()
+    expect(principalBody).toContain('<C:calendar-home-set>')
+    expect(principalBody).toContain('<D:calendar-user-address-set>')
+    expect(principalBody).toContain('<D:displayname>Timeline</D:displayname>')
+
+    const propPatch = await handleCalDav(
+      new Request('http://localhost/caldav/calendars/owner/', {
+        method: 'PROPPATCH',
+        headers: { ...basicAuth(), 'Content-Type': 'application/xml' },
+        body: [
+          '<?xml version="1.0" encoding="utf-8"?>',
+          '<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">',
+          '  <D:set><D:prop><C:calendar-color>#ff0000</C:calendar-color></D:prop></D:set>',
+          '</D:propertyupdate>'
+        ].join('')
+      }),
+      { method: 'PROPPATCH', pathname: '/caldav/calendars/owner/' },
+      { database, prepared }
+    )
+    expect(propPatch.status).toBe(207)
+    expect(await propPatch.text()).toContain('<C:calendar-color>')
 
     const collection = await handleCalDav(
       new Request('http://localhost/caldav/calendars/owner/', {
@@ -107,6 +141,8 @@ describe('CalDAV service', () => {
     expect(collectionBody).toContain('legacy@timeline')
     expect(collectionBody).toContain('<D:current-user-principal>')
     expect(collectionBody).toContain('<D:principal-URL>')
+    expect(collectionBody).toContain('<C:calendar-home-set>')
+    expect(collectionBody).toContain('<D:displayname>Timeline</D:displayname>')
     expect(collectionBody).toContain('/caldav/principal/owner/')
 
     const shortCollection = await handleCalDav(
