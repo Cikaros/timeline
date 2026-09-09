@@ -50,6 +50,17 @@ function basicAuth() {
 }
 
 describe('CalDAV service', () => {
+  test('returns CalDAV capabilities in OPTIONS', async () => {
+    const response = await handleCalDav(
+      new Request('http://localhost/caldav/', { method: 'OPTIONS' }),
+      { method: 'OPTIONS', pathname: '/caldav/' }
+    )
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('DAV')).toBe('1, calendar-access')
+    expect(response.headers.get('Allow')).toContain('PROPFIND')
+  })
+
   test('parses all-day VEVENT values', () => {
     const parsed = parseCalDavEvent([
       'BEGIN:VCALENDAR',

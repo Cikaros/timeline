@@ -115,7 +115,7 @@ ${responses.join('\n')}${syncToken ? `\n<D:sync-token>${xmlEscape(syncToken)}</D
     status: 207,
     headers: {
       'Content-Type': 'application/xml; charset=utf-8',
-      'DAV': '1, 2, calendar-access'
+      'DAV': '1, calendar-access'
     }
   })
 }
@@ -456,9 +456,9 @@ function deleteEvent(username, uid, req, dependencies = {}) {
 export async function handleCalDav(req, { method, pathname }, dependencies = {}) {
   if (method === 'OPTIONS') {
     return new Response(null, {
-      status: 204,
+      status: 200,
       headers: {
-        DAV: '1, 2, calendar-access',
+        DAV: '1, calendar-access',
         Allow: 'OPTIONS, GET, HEAD, PROPFIND, REPORT, PUT, DELETE',
         'Content-Length': '0'
       }
@@ -552,7 +552,7 @@ export async function handleCalDav(req, { method, pathname }, dependencies = {})
         headers: {
           'Content-Type': 'text/calendar; charset=utf-8',
           'Cache-Control': 'no-store',
-          DAV: '1, 2, calendar-access'
+          DAV: '1, calendar-access'
         }
       })
     }

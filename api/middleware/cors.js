@@ -30,7 +30,10 @@ export function getCorsHeaders(req) {
  * @returns {Response|null} 预检请求返回响应，否则返回null
  */
 export function corsMiddleware(req, corsHeaders) {
-  if (req.method === 'OPTIONS') {
+  // CalDAV clients also use OPTIONS to advertise DAV compliance classes;
+  // only an actual browser CORS preflight should be short-circuited here.
+  const isPreflight = req.headers.has('origin') && req.headers.has('access-control-request-method')
+  if (req.method === 'OPTIONS' && isPreflight) {
     return new Response(null, {
       status: 204,
       headers: corsHeaders
