@@ -176,8 +176,11 @@ describe('CalDAV service', () => {
     expect(home.status).toBe(207)
     const homeBody = await home.text()
     expect(homeBody).toContain('<D:href>http://localhost/caldav/calendars/owner/</D:href>')
-    expect(homeBody).toContain('<D:resourcetype><D:collection/></D:resourcetype>')
-    expect(homeBody).toContain('/caldav/calendars/owner/timeline/')
+    expect(homeBody).toContain('<D:resourcetype><D:collection/><C:calendar/></D:resourcetype>')
+    expect(homeBody).toContain('<D:displayname>Timeline</D:displayname>')
+    expect(homeBody).toContain('<IC:calendar-color>#FF5C8A</IC:calendar-color>')
+    expect(homeBody).toContain('<C:supported-calendar-component-set><C:comp name="VEVENT"/></C:supported-calendar-component-set>')
+    expect(homeBody).not.toContain('<D:href>http://localhost/caldav/calendars/owner/timeline/</D:href>')
 
     const timelineCollection = await handleCalDav(
       new Request('http://localhost/caldav/calendars/owner/timeline/', {
@@ -225,7 +228,8 @@ describe('CalDAV service', () => {
     )
     expect(collection.status).toBe(207)
     const collectionBody = await collection.text()
-    expect(collectionBody).toContain('/caldav/calendars/owner/timeline/')
+    expect(collectionBody).toContain('<D:href>http://localhost/caldav/calendars/owner/</D:href>')
+    expect(collectionBody).toContain('<D:resourcetype><D:collection/><C:calendar/></D:resourcetype>')
     expect(collectionBody).toContain('<D:current-user-principal>')
     expect(collectionBody).toContain('<D:principal-URL>')
     expect(collectionBody).toContain('<C:calendar-home-set>')
@@ -241,7 +245,7 @@ describe('CalDAV service', () => {
       { database, prepared }
     )
     expect(shortHome.status).toBe(207)
-    expect(await shortHome.text()).toContain('/caldav/calendars/owner/timeline/')
+    expect(await shortHome.text()).toContain('<D:resourcetype><D:collection/><C:calendar/></D:resourcetype>')
 
     const shortCollection = await handleCalDav(
       new Request('http://localhost/caldav/owner/timeline/', {

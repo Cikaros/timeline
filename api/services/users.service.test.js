@@ -1,11 +1,5 @@
 import { describe, expect, test } from 'bun:test'
 import { Database } from 'bun:sqlite'
-import {
-  initializeDefaultAccount,
-  login,
-  createAccount,
-  deleteAccount
-} from './users.service.js'
 
 function createTestDb() {
   const database = new Database(':memory:')
@@ -45,13 +39,19 @@ function createTestDb() {
 
 describe('users service', () => {
   test('initializes one owner account and enforces the global limit', async () => {
+    const { CONFIG } = await import('../config/index.js')
+    const { initializeDefaultAccount, login, createAccount, deleteAccount } =
+      await import('./users.service.js')
+
+    CONFIG.DEFAULT_PASSWORD ||= 'test-initial-password'
+
     const { database, prepared } = createTestDb()
     await initializeDefaultAccount({ database, prepared })
     expect(prepared.getUsers.all()).toHaveLength(1)
     expect(prepared.getUsers.all()[0].username).toBe('owner')
     expect(prepared.getUsers.all()[0].role).toBe('admin')
 
-    const loginResult = await login('owner', 'REDACTED', { database, prepared })
+    const loginResult = await login('owner', 'test-initial-password', { database, prepared })
     expect(loginResult.user.username).toBe('owner')
 
     await createAccount('second', 'secret-password', { database, prepared })

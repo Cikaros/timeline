@@ -18,7 +18,7 @@ Timeline 使用“密码哈希 + Session Cookie”的轻量认证方案：
 | 旧 SHA-256 哈希 | 首次验证成功后自动重哈希为 bcrypt |
 | 修改密码 | 写入新 bcrypt 哈希，并将 `password_is_default` 置为 `0` |
 
-默认密码仍兼容 `DEFAULT_PASSWORD` 环境变量；未设置时使用 `REDACTED`。
+初始密码必须通过 `DEFAULT_PASSWORD` 环境变量提供，代码中不保留默认密码。
 
 ## 默认密码强制修改
 

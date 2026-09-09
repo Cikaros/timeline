@@ -53,8 +53,15 @@ docker compose up -d
 
 容器将宿主的 `data/timeline.db` 目录挂载到容器内以持久化数据库。
 
-通过反向代理访问时，把实际访问地址加入 `ALLOWED_ORIGINS`。当前默认允许
-`https://timeline.example.com`；更换域名后同步修改 `docker-compose.yml`。
+通过反向代理访问时，请转发真实的公开地址。至少需要：
+
+```nginx
+proxy_set_header Host $host;
+proxy_set_header X-Forwarded-Host $host;
+proxy_set_header X-Forwarded-Proto $scheme;
+```
+
+服务端会用这些头推导 Origin，不再维护 `ALLOWED_ORIGINS` 白名单。
 
 ### 常用环境变量
 
@@ -63,16 +70,15 @@ docker compose up -d
 | `PORT` | 后端端口，默认 `3000` |
 | `DB_PATH` | SQLite 数据库路径，默认 `./data/timeline.db` |
 | `SESSION_DURATION` | 会话有效期，单位毫秒，默认 24 小时 |
-| `DEFAULT_PASSWORD` | 首次初始化时使用的默认密码 |
-| `ALLOWED_ORIGINS` | 额外允许的跨域 Origin，多个值用英文逗号分隔 |
-| `PUBLIC_BASE_URL` | 反向代理后的公网地址，CalDAV 发现阶段用于生成完整 principal URL |
+| `DEFAULT_PASSWORD` | 首次初始化时使用的密码，新库必须设置 |
+| `PUBLIC_BASE_URL` | 可选的公网源地址，用于覆盖 `Host` / `X-Forwarded-*` 推导结果，并供 CalDAV 发现阶段生成完整 principal URL |
 
-`ALLOWED_ORIGINS` 必须填写浏览器地址栏里的完整 Origin，例如
-`https://timeline.example.com`，不要带路径和结尾斜杠。
+`PUBLIC_BASE_URL` 必须填写浏览器地址栏里的完整 Origin，例如
+`https://timeline.example.com`，不要带路径和结尾斜杠。正常配置代理头后可以不设置。
 
 ## 功能
 
-- 登录认证（默认密码: `REDACTED`，首次登录后强制修改）
+- 登录认证（首次密码由 `DEFAULT_PASSWORD` 提供，首次登录后强制修改）
 - 账号管理（全局最多 2 个账号，默认账号名为 `owner`）
 - 添加/删除见面记录
 - 支持日期范围和多项输入（如 `20250101~20250105` 或逗号分隔）

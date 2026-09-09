@@ -2,7 +2,7 @@
  * 旧版数据库一次性迁移脚本
  *
  * 用法（仓库根目录执行）：
- *   bun run scripts/migrate-old-db.js                      # 密码重置为默认密码 REDACTED
+ *   DEFAULT_PASSWORD=<初始密码> bun run scripts/migrate-old-db.js
  *   bun run scripts/migrate-old-db.js --password <旧密码>  # 校验 MD5 后保留旧密码
  *
  * 迁移内容：meetings（全部）、first_meeting 设置、password_hash
@@ -18,7 +18,7 @@ import { hashPassword } from '../api/utils/crypto.js'
 const ROOT = join(import.meta.dirname, '..')
 const OLD_DB = join(ROOT, 'data', 'data.sqlite')
 const NEW_DB = join(ROOT, 'data', 'timeline.db')
-const DEFAULT_PASSWORD = 'REDACTED'
+const DEFAULT_PASSWORD = process.env.DEFAULT_PASSWORD
 
 // 解析 --password 参数
 let oldPassword = null
@@ -65,8 +65,12 @@ if (storedHash && storedHash.startsWith('$2')) {
     passwordHash = await hashPassword(oldPassword)
     console.log('🔑 已用旧密码重新生成 bcrypt 哈希')
   } else {
+    if (!DEFAULT_PASSWORD) {
+      console.error('❌ 旧密码为 MD5 格式且未提供 --password 时，必须设置 DEFAULT_PASSWORD')
+      process.exit(1)
+    }
     passwordHash = await hashPassword(DEFAULT_PASSWORD)
-    console.log(`🔑 旧密码为 MD5 格式且未提供旧密码，重置为默认密码 ${DEFAULT_PASSWORD}`)
+    console.log('🔑 旧密码为 MD5 格式且未提供旧密码，已使用 DEFAULT_PASSWORD 重置')
   }
 }
 

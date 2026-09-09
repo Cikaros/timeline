@@ -182,7 +182,7 @@ export const CONFIG = {
   SESSION_CLEANUP_INTERVAL: 6 * 60 * 60 * 1000,
   STATIC_CACHE_MAX_AGE: 31536000,
   MAX_REQUEST_BODY_SIZE: 1024 * 1024,
-  DEFAULT_PASSWORD: process.env.DEFAULT_PASSWORD || 'REDACTED'
+  DEFAULT_PASSWORD: process.env.DEFAULT_PASSWORD || ''
 }
 ```
 
@@ -199,7 +199,7 @@ export const CONFIG = {
 | `DB_PATH` | 数据库文件路径 |
 | `PORT` | 后端服务端口（默认 3000） |
 | `SESSION_DURATION` | 会话有效期（毫秒） |
-| `DEFAULT_PASSWORD` | 默认登录密码 |
+| `DEFAULT_PASSWORD` | 首次初始化登录密码；初始化新库前必须设置 |
 
 ## 存储位置
 

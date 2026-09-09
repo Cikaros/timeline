@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { corsMiddleware } from './cors.js'
+import { corsMiddleware, getCorsHeaders, isAllowedOrigin } from './cors.js'
 
 describe('CORS middleware', () => {
   test('short-circuits browser preflight requests', () => {
@@ -20,5 +20,33 @@ describe('CORS middleware', () => {
     const request = new Request('http://localhost/caldav/', { method: 'OPTIONS' })
 
     expect(corsMiddleware(request, {})).toBeNull()
+  })
+
+  test('accepts the public origin reconstructed from proxy headers', () => {
+    const request = new Request('http://backend:3000/api/login', {
+      method: 'POST',
+      headers: {
+        Origin: 'https://timeline.example.com',
+        'X-Forwarded-Host': 'timeline.example.com',
+        'X-Forwarded-Proto': 'https'
+      }
+    })
+
+    expect(isAllowedOrigin(request)).toBe(true)
+    expect(getCorsHeaders(request)['Access-Control-Allow-Origin']).toBe('https://timeline.example.com')
+  })
+
+  test('rejects a different browser origin', () => {
+    const request = new Request('http://backend:3000/api/login', {
+      method: 'POST',
+      headers: {
+        Origin: 'https://attacker.example',
+        'X-Forwarded-Host': 'timeline.example.com',
+        'X-Forwarded-Proto': 'https'
+      }
+    })
+
+    expect(isAllowedOrigin(request)).toBe(false)
+    expect(getCorsHeaders(request)).toEqual({})
   })
 })

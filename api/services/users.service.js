@@ -20,6 +20,10 @@ async function getDefaultPasswordHash(dependencies = {}) {
   const existing = statements.getSetting.get('password_hash')?.value
   if (existing) return existing
 
+  if (!CONFIG.DEFAULT_PASSWORD) {
+    throw new Error('DEFAULT_PASSWORD 未设置')
+  }
+
   const hashedPassword = await hashPassword(CONFIG.DEFAULT_PASSWORD)
   statements.setSetting.run('password_hash', hashedPassword, Date.now())
   statements.setSetting.run('password_is_default', '1', Date.now())
@@ -69,14 +73,18 @@ export async function login(username, password, dependencies = {}) {
 
   let mustChangePassword = false
   if (statements.getSetting.get('password_is_default')?.value === '1') {
-    const { valid: stillUsesDefaultPassword } = await verifyPassword(
-      CONFIG.DEFAULT_PASSWORD,
-      user.password_hash
-    )
-    if (!stillUsesDefaultPassword) {
-      statements.setSetting.run('password_is_default', '0', Date.now())
+    if (CONFIG.DEFAULT_PASSWORD) {
+      const { valid: stillUsesDefaultPassword } = await verifyPassword(
+        CONFIG.DEFAULT_PASSWORD,
+        user.password_hash
+      )
+      if (!stillUsesDefaultPassword) {
+        statements.setSetting.run('password_is_default', '0', Date.now())
+      } else {
+        mustChangePassword = true
+      }
     } else {
-      mustChangePassword = true
+      statements.setSetting.run('password_is_default', '0', Date.now())
     }
   }
 

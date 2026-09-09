@@ -624,17 +624,35 @@ async function createApp() {
 
     <div class="grid">
       <div class="panel">
-        <div class="muted">添加一次见面</div>
-        <form id="meet-form">
-          <input id="meet-date" type="date" />
-          <textarea id="meet-input" rows="2" placeholder="可输入：20250101 或 20250101~20250105（支持 〜、-、~），或用逗号/顿号/分号/空格/换行分隔多项"></textarea>
-          <textarea id="meet-note" rows="2" placeholder="备注（可选）"></textarea>
+        <div class="panel-heading">
+          <div class="panel-title">添加一次见面</div>
+        </div>
+        <form id="meet-form" data-mode="date">
+          <div class="segmented-control" role="group" aria-label="日期输入方式">
+            <button type="button" class="segment-button is-active" data-meet-mode="date" aria-pressed="true">选择日期</button>
+            <button type="button" class="segment-button" data-meet-mode="bulk" aria-pressed="false">批量日期</button>
+          </div>
+          <div id="meet-date-field" class="meet-field is-active">
+            <label class="field-label" for="meet-date">日期</label>
+            <input id="meet-date" type="date" />
+          </div>
+          <div id="meet-input-field" class="meet-field" hidden>
+            <label class="field-label" for="meet-input">日期列表</label>
+            <textarea id="meet-input" rows="4" placeholder="20250101、20250105 或 20250101~20250105"></textarea>
+          </div>
+          <div class="meet-field">
+            <label class="field-label" for="meet-note">备注</label>
+            <textarea id="meet-note" class="meet-note" rows="2" placeholder="备注（可选）"></textarea>
+          </div>
           <div class="controls">
-            <button class="btn" type="submit">添加</button>
+            <button class="btn meet-submit" type="submit">添加</button>
           </div>
         </form>
-        <div class="muted" style="margin-top:12px">历史日历</div>
-        <div id="calendar-view" style="margin-top:8px"></div>
+        <div class="panel-divider"></div>
+        <div class="panel-heading">
+          <div class="panel-title">历史日历</div>
+        </div>
+        <div id="calendar-view" class="calendar-view"></div>
       </div>
 
       <div>
@@ -683,6 +701,32 @@ function bindEvents(signal) {
   const changePassBtn = document.getElementById('change-pass')
   const logoutBtn = document.getElementById('logout')
 
+  const modeButtons = [...form.querySelectorAll('.segment-button')]
+  const dateField = document.getElementById('meet-date-field')
+  const inputField = document.getElementById('meet-input-field')
+
+  function setMeetMode(mode) {
+    const activeMode = mode === 'bulk' ? 'bulk' : 'date'
+    form.dataset.mode = activeMode
+    dateField.hidden = activeMode !== 'date'
+    dateField.classList.toggle('is-active', activeMode === 'date')
+    inputField.hidden = activeMode !== 'bulk'
+    inputField.classList.toggle('is-active', activeMode === 'bulk')
+    modeButtons.forEach(button => {
+      const active = button.dataset.meetMode === activeMode
+      button.classList.toggle('is-active', active)
+      button.setAttribute('aria-pressed', String(active))
+    })
+  }
+
+  modeButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      setMeetMode(button.dataset.meetMode)
+    }, { signal })
+  })
+
+  setMeetMode(form.dataset.mode)
+
   // 表单提交
   form.addEventListener('submit', async (e) => {
     e.preventDefault()
@@ -690,9 +734,13 @@ function bindEvents(signal) {
     const dateInput = document.getElementById('meet-date').value
     const textInput = document.getElementById('meet-input').value.trim()
     const note = document.getElementById('meet-note').value.trim()
-    const payload = textInput || dateInput
+    const mode = form.dataset.mode === 'bulk' ? 'bulk' : 'date'
+    const payload = mode === 'bulk' ? textInput : dateInput
 
-    if (!payload) return
+    if (!payload) {
+      showToast(mode === 'bulk' ? '请输入日期' : '请选择日期', 'info')
+      return
+    }
 
     // 客户端预解析和去重
     const parsedDates = parseInputToDates(payload)

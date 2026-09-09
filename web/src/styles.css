@@ -121,6 +121,54 @@ textarea{ min-height:84px; resize:vertical }
 input[type="date"]{ padding:8px 10px }
 .controls{display:flex;gap:8px;align-items:center}
 
+/* 添加见面与历史日历的分区 */
+.panel-heading{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.panel-title{font-size:15px;font-weight:800;color:var(--accent-strong)}
+.panel-divider{
+  height:1px;
+  margin:20px 0 16px;
+  background:linear-gradient(90deg, rgba(255,92,138,0.22), rgba(255,92,138,0.04));
+}
+.segmented-control{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:4px;
+  padding:4px;
+  border:1px solid rgba(255,92,138,0.12);
+  border-radius:10px;
+  background:rgba(255,255,255,0.72);
+}
+.segment-button{
+  padding:8px 10px;
+  border:none;
+  border-radius:7px;
+  background:transparent;
+  color:var(--muted);
+  font-size:13px;
+  font-weight:700;
+  cursor:pointer;
+  transition:background 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+.segment-button:hover{color:var(--accent-strong)}
+.segment-button.is-active{
+  background:linear-gradient(135deg, var(--accent), var(--accent-strong));
+  color:#fff;
+  box-shadow:0 5px 14px rgba(255,92,138,0.16);
+}
+.segment-button:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(255,92,138,0.18)}
+.meet-field{display:grid;gap:6px}
+.meet-field[hidden]{display:none}
+.field-label{font-size:12px;font-weight:700;color:var(--muted)}
+.meet-note{min-height:68px}
+.controls{justify-content:flex-end}
+.meet-submit{min-width:96px}
+.calendar-view{margin-top:2px}
+
+@media (max-width: 768px){
+  .panel-heading{margin-bottom:10px}
+  .meet-submit{width:100%}
+}
+
 /* 日历订阅管理面板 */
 .subscription-panel{
   margin-top:18px;

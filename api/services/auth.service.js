@@ -24,6 +24,10 @@ function setSettingValue(key, value) {
 }
 
 export async function initializeDefaultPassword() {
+  if (!CONFIG.DEFAULT_PASSWORD) {
+    throw new Error('DEFAULT_PASSWORD 未设置')
+  }
+
   const row = preparedStatements.getSetting.get('password_hash')
   if (!row) {
     const hashedPassword = await hashPassword(CONFIG.DEFAULT_PASSWORD)
@@ -46,7 +50,7 @@ export async function login(password) {
   if (!await verifyAndUpgradeHash(password, storedHash)) return null
 
   let mustChangePassword = getSettingValue('password_is_default') === '1'
-  if (mustChangePassword) {
+  if (mustChangePassword && CONFIG.DEFAULT_PASSWORD) {
     const { valid: stillUsesDefaultPassword } = await verifyPassword(
       CONFIG.DEFAULT_PASSWORD,
       storedHash

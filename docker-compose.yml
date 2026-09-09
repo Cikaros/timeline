@@ -9,9 +9,8 @@ services:
     restart: unless-stopped
     environment:
       - NODE_ENV=production
-      - ALLOWED_ORIGINS=https://timeline.example.com
+      - DEFAULT_PASSWORD=${DEFAULT_PASSWORD:?请先设置 DEFAULT_PASSWORD}
       - PUBLIC_BASE_URL=https://timeline.example.com
-      - CALDAV_DEBUG=1
     healthcheck:
       test: ["CMD", "bun", "-e", "await fetch('http://localhost:3000/api/health').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
       interval: 30s

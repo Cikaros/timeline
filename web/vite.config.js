@@ -17,6 +17,10 @@ function loadLocalHttpsConfig() {
   }
 }
 
+const devProxyHeaders = process.env.HTTPS === '1'
+  ? { 'x-forwarded-proto': 'https' }
+  : {}
+
 export default defineConfig({
   // 强制以当前web文件夹为Vite工作根目录（解决所有路径问题）
   root: __dirname,
@@ -39,18 +43,18 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: 'http://localhost:3000',
-        changeOrigin: true,
-        secure: false
+        secure: false,
+        headers: devProxyHeaders
       },
       '/caldav': {
         target: 'http://localhost:3000',
-        changeOrigin: true,
-        secure: false
+        secure: false,
+        headers: devProxyHeaders
       },
       '/.well-known/caldav': {
         target: 'http://localhost:3000',
-        changeOrigin: true,
-        secure: false
+        secure: false,
+        headers: devProxyHeaders
       }
     }
   }

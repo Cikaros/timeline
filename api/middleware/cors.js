@@ -1,4 +1,10 @@
-import { ALLOWED_ORIGINS } from '../config/index.js'
+import { requestBaseUrl } from '../utils/request.js'
+
+export function isAllowedOrigin(req) {
+  const origin = req.headers.get('origin')
+  if (!origin) return true
+  return origin === requestBaseUrl(req)
+}
 
 /**
  * 获取CORS响应头
@@ -8,8 +14,8 @@ import { ALLOWED_ORIGINS } from '../config/index.js'
 export function getCorsHeaders(req) {
   const origin = req.headers.get('origin') || ''
 
-  // 非白名单来源不设置 CORS 头，浏览器将阻止跨域请求
-  if (!origin || !ALLOWED_ORIGINS.includes(origin)) {
+  // 只接受当前代理源，防止任意站点携带 Cookie 跨域调用。
+  if (!isAllowedOrigin(req)) {
     return {}
   }
 

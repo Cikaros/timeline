@@ -10,6 +10,7 @@ import {
 } from './ics.service.js'
 import { hashSessionToken } from '../utils/crypto.js'
 import { verifyPassword } from '../utils/crypto.js'
+import { requestBaseUrl } from '../utils/request.js'
 
 const MAX_EVENT_DAYS = 366
 
@@ -19,17 +20,6 @@ function calendarHomeHref(username) {
 
 function calendarCollectionHref(username) {
   return `/caldav/calendars/${encodeURIComponent(username)}/timeline/`
-}
-
-function requestBaseUrl(req) {
-  if (CONFIG.PUBLIC_BASE_URL) return CONFIG.PUBLIC_BASE_URL.replace(/\/+$/, '')
-
-  const url = new URL(req.url)
-  const forwardedHost = req.headers.get('x-forwarded-host')?.split(',')[0]?.trim()
-  const forwardedProto = req.headers.get('x-forwarded-proto')?.split(',')[0]?.trim()
-  const host = forwardedHost || req.headers.get('host') || url.host
-  const proto = forwardedProto || url.protocol.replace(':', '')
-  return `${proto}://${host}`
 }
 
 function absoluteHref(baseUrl, href) {
@@ -306,32 +296,7 @@ function homeResponse(username, body = '', baseUrl = '') {
   </D:response>`
 }
 
-function homeCollectionResponse(username, body = '', baseUrl = '') {
-  const principalHref = absoluteHref(baseUrl, `/caldav/principal/${encodeURIComponent(username)}/`)
-  const props = selectPropfindProps(body, [
-    '<D:displayname>Timeline</D:displayname>',
-    `<D:current-user-principal>\n          <D:href>${xmlEscape(principalHref)}</D:href>\n        </D:current-user-principal>`,
-    `<D:principal-URL><D:href>${xmlEscape(principalHref)}</D:href></D:principal-URL>`,
-    `<D:owner><D:href>${xmlEscape(principalHref)}</D:href></D:owner>`,
-    '<D:resourcetype><D:collection/></D:resourcetype>',
-    `<C:calendar-home-set>\n          <D:href>${xmlEscape(absoluteHref(baseUrl, calendarHomeHref(username)))}</D:href>\n        </C:calendar-home-set>`,
-    currentUserPrivilegeSet()
-  ])
-
-  return [
-    `  <D:response>
-    <D:href>${xmlEscape(absoluteHref(baseUrl, calendarHomeHref(username)))}</D:href>
-      <D:propstat>
-      <D:prop>
-        ${props.join('\n        ')}
-      </D:prop>
-      <D:status>HTTP/1.1 200 OK</D:status>
-    </D:propstat>
-  </D:response>`
-  ]
-}
-
-function calendarCollectionResponse(username, includeEvents, rows, body = '', baseUrl = '') {
+function calendarCollectionResponse(username, includeEvents, rows, body = '', baseUrl = '', collectionHref = null) {
   const principalHref = absoluteHref(baseUrl, `/caldav/principal/${encodeURIComponent(username)}/`)
   const groups = groupEvents(rows)
   const ctag = `${groups.length}-${rows.reduce((total, row) => total + (row.updated_at || 0), 0)}`
@@ -350,7 +315,7 @@ function calendarCollectionResponse(username, includeEvents, rows, body = '', ba
     '<D:resourcetype><D:collection/><C:calendar/></D:resourcetype>',
     `<C:calendar-home-set>\n          <D:href>${xmlEscape(absoluteHref(baseUrl, calendarHomeHref(username)))}</D:href>\n        </C:calendar-home-set>`,
     '<C:calendar-description>Timeline meetings</C:calendar-description>',
-    '<IC:calendar-color>#3B82F6</IC:calendar-color>',
+    '<IC:calendar-color>#FF5C8A</IC:calendar-color>',
     '<C:supported-calendar-component-set><C:comp name="VEVENT"/></C:supported-calendar-component-set>',
     `<C:supported-calendar-data>\n          <C:calendar-data-type content-type="text/calendar" version="2.0"/>\n        </C:supported-calendar-data>`,
     currentUserPrivilegeSet(),
@@ -368,7 +333,7 @@ function calendarCollectionResponse(username, includeEvents, rows, body = '', ba
 
   return [
     `  <D:response>
-    <D:href>${xmlEscape(absoluteHref(baseUrl, calendarCollectionHref(username)))}</D:href>
+    <D:href>${xmlEscape(collectionHref || absoluteHref(baseUrl, calendarCollectionHref(username)))}</D:href>
     <D:propstat>
       <D:prop>
         ${props.join('\n        ')}
@@ -436,28 +401,78 @@ function caldavError(status, message) {
   })
 }
 
-async function debugCalDav(req) {
-  if (process.env.CALDAV_DEBUG !== '1') return
+let calDavDebugSequence = 0
 
-  let body = ''
-  let bodyError
+const REDACTED_HEADERS = new Set([
+  'authorization',
+  'cookie',
+  'cookie2',
+  'proxy-authorization',
+  'set-cookie'
+])
+
+function safeDebugHeaders(headers) {
+  return Object.fromEntries([...headers].map(([name, value]) => [
+    name,
+    REDACTED_HEADERS.has(name.toLowerCase()) ? '<redacted>' : value
+  ]))
+}
+
+async function debugResource(resource) {
   try {
-    body = await req.clone().text()
+    const body = await resource.clone().text()
+    return { bodyLength: body.length, body }
   } catch (error) {
-    bodyError = String(error)
+    return { bodyLength: null, body: null, bodyError: String(error) }
   }
+}
+
+async function debugRequest(req, debugId) {
+  if (!CONFIG.CALDAV_DEBUG) return
 
   const url = new URL(req.url)
-  console.log('[CalDAV]', JSON.stringify({
+  const body = await debugResource(req)
+  console.log('[CalDAV request]', JSON.stringify({
+    debugId,
     method: req.method,
     path: url.pathname,
-    depth: req.headers.get('depth'),
-    contentType: req.headers.get('content-type'),
-    userAgent: req.headers.get('user-agent'),
-    bodyLength: body.length,
-    body: body.slice(0, 16384),
-    bodyError
+    query: Object.fromEntries(url.searchParams),
+    headers: safeDebugHeaders(req.headers),
+    ...body
   }))
+}
+
+async function debugResponse(response, debugId) {
+  if (!CONFIG.CALDAV_DEBUG) return
+
+  const body = await debugResource(response)
+  console.log('[CalDAV response]', JSON.stringify({
+    debugId,
+    status: response.status,
+    headers: safeDebugHeaders(response.headers),
+    ...body
+  }))
+}
+
+function nextCalDavDebugId() {
+  calDavDebugSequence += 1
+  return `${Date.now().toString(36)}-${calDavDebugSequence}`
+}
+
+export async function handleCalDav(req, context = {}, dependencies = {}) {
+  const debugId = CONFIG.CALDAV_DEBUG ? nextCalDavDebugId() : null
+  await debugRequest(req, debugId)
+
+  try {
+    const response = await handleCalDavRequest(req, context, dependencies)
+    await debugResponse(response, debugId)
+    return response
+  } catch (error) {
+    if (CONFIG.CALDAV_DEBUG) {
+      console.error('[CalDAV error]', JSON.stringify({ debugId, error: String(error) }))
+    }
+    throw error
+  }
 }
 
 export async function authenticateCalDav(req, dependencies = {}) {
@@ -690,9 +705,7 @@ function deleteEvent(username, uid, req, dependencies = {}) {
   return new Response(null, { status: 204 })
 }
 
-export async function handleCalDav(req, { method, pathname }, dependencies = {}) {
-  await debugCalDav(req)
-
+async function handleCalDavRequest(req, { method, pathname }, dependencies = {}) {
   if (method === 'OPTIONS') {
     return new Response(null, {
       status: 200,
@@ -749,11 +762,14 @@ export async function handleCalDav(req, { method, pathname }, dependencies = {})
         return caldavError(403, 'Forbidden')
       }
       const depthZero = req.headers.get('depth') === '0'
-      const responses = [homeCollectionResponse(user.username, requestBody, baseUrl)]
-      if (!depthZero) {
-        responses.push(...calendarCollectionResponse(user.username, false, getRows(dependencies), requestBody, baseUrl))
-      }
-      return multistatus(responses)
+      return multistatus(calendarCollectionResponse(
+        user.username,
+        !depthZero,
+        getRows(dependencies),
+        requestBody,
+        baseUrl,
+        absoluteHref(baseUrl, calendarHomeHref(user.username))
+      ))
     }
 
     const shortCollectionMatch = normalized.match(/^\/caldav\/([^/]+)$/)
@@ -764,11 +780,14 @@ export async function handleCalDav(req, { method, pathname }, dependencies = {})
     ) {
       const rows = getRows(dependencies)
       const depthZero = req.headers.get('depth') === '0'
-      const responses = [homeCollectionResponse(user.username, requestBody, baseUrl)]
-      if (!depthZero) {
-        responses.push(...calendarCollectionResponse(user.username, false, getRows(dependencies), requestBody, baseUrl))
-      }
-      return multistatus(responses)
+      return multistatus(calendarCollectionResponse(
+        user.username,
+        !depthZero,
+        rows,
+        requestBody,
+        baseUrl,
+        absoluteHref(baseUrl, calendarHomeHref(user.username))
+      ))
     }
 
     const eventMatch = normalized.match(/^\/caldav\/calendars\/([^/]+)(?:\/timeline)?\/(.+)\.ics$/)

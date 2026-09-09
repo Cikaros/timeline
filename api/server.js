@@ -1,6 +1,6 @@
 import { resolve } from 'node:path'
-import { ALLOWED_ORIGINS, CONFIG } from './config/index.js'
-import { corsMiddleware, getCorsHeaders } from './middleware/cors.js'
+import { CONFIG } from './config/index.js'
+import { corsMiddleware, getCorsHeaders, isAllowedOrigin } from './middleware/cors.js'
 import { authRoutes } from './routes/auth.js'
 import { healthRoutes } from './routes/health.js'
 import { settingsRoutes } from './routes/settings.js'
@@ -21,12 +21,6 @@ const SECURITY_HEADERS = {
   'Referrer-Policy': 'strict-origin-when-cross-origin',
   'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
   'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
-}
-
-function isAllowedOrigin(req, url) {
-  const origin = req.headers.get('origin')
-  if (!origin) return true
-  return origin === url.origin || ALLOWED_ORIGINS.includes(origin)
 }
 
 function withSecurityHeaders(response) {
@@ -99,7 +93,7 @@ export default Bun.serve({
 
       const method = req.method
       const isUnsafeMethod = !['GET', 'HEAD', 'OPTIONS'].includes(method)
-      if (isUnsafeMethod && !isAllowedOrigin(req, url)) {
+      if (isUnsafeMethod && !isAllowedOrigin(req)) {
         return withSecurityHeaders(errorResponse('Forbidden origin', 403, corsHeaders))
       }
 
