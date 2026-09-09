@@ -53,6 +53,9 @@ docker compose up -d
 
 容器将宿主的 `data/timeline.db` 目录挂载到容器内以持久化数据库。
 
+通过反向代理访问时，把实际访问地址加入 `ALLOWED_ORIGINS`。当前默认允许
+`https://timeline.example.com`；更换域名后同步修改 `docker-compose.yml`。
+
 ### 常用环境变量
 
 | 变量 | 说明 |
@@ -62,6 +65,9 @@ docker compose up -d
 | `SESSION_DURATION` | 会话有效期，单位毫秒，默认 24 小时 |
 | `DEFAULT_PASSWORD` | 首次初始化时使用的默认密码 |
 | `ALLOWED_ORIGINS` | 额外允许的跨域 Origin，多个值用英文逗号分隔 |
+
+`ALLOWED_ORIGINS` 必须填写浏览器地址栏里的完整 Origin，例如
+`https://timeline.example.com`，不要带路径和结尾斜杠。
 
 ## 功能
 

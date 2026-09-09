@@ -73,6 +73,7 @@ export const authController = {
 
   async changePassword(req) {
     const corsHeaders = getCorsHeaders(req)
+    const cookies = parseCookies(req.headers.get('cookie') || '')
     const body = await req.json().catch(() => ({}))
     const result = changePasswordSchema.safeParse(body)
     if (!result.success) {

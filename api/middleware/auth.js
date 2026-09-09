@@ -51,6 +51,8 @@ function usesDefaultPassword() {
   return preparedStatements.getSetting.get('password_is_default')?.value === '1'
 }
 
+const passwordChangePaths = new Set(['/api/password', '/api/accounts/password'])
+
 export function withAuth(handler) {
   return async (req, ...args) => {
     const auth = requireAuth(req)
@@ -63,7 +65,7 @@ export function withAuth(handler) {
     if (usesDefaultPassword()) {
       const url = new URL(req.url)
       const canReadSettings = url.pathname === '/api/settings' && req.method === 'GET'
-      if (url.pathname !== '/api/password' && !canReadSettings) {
+      if (!passwordChangePaths.has(url.pathname) && !canReadSettings) {
         return errorResponse('请先修改默认密码', 403, getCorsHeaders(req))
       }
     }

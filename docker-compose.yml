@@ -9,6 +9,7 @@ services:
     restart: unless-stopped
     environment:
       - NODE_ENV=production
+      - ALLOWED_ORIGINS=https://timeline.example.com
     healthcheck:
       test: ["CMD", "bun", "-e", "await fetch('http://localhost:3000/api/health').then(r => { if (!r.ok) process.exit(1) }).catch(() => process.exit(1))"]
       interval: 30s
