@@ -11,6 +11,10 @@ import {
 import { hashSessionToken } from '../utils/crypto.js'
 import { verifyPassword } from '../utils/crypto.js'
 import { requestBaseUrl } from '../utils/request.js'
+import {
+  MEETING_CATEGORIES,
+  getMeetingCategory
+} from './categories.service.js'
 
 const MAX_EVENT_DAYS = 366
 
@@ -18,8 +22,8 @@ function calendarHomeHref(username) {
   return `/caldav/calendars/${encodeURIComponent(username)}/`
 }
 
-function calendarCollectionHref(username) {
-  return `/caldav/calendars/${encodeURIComponent(username)}/timeline/`
+function calendarCollectionHref(username, category = 'meetings') {
+  return `/caldav/calendars/${encodeURIComponent(username)}/${encodeURIComponent(category)}/`
 }
 
 function absoluteHref(baseUrl, href) {
@@ -60,6 +64,7 @@ function groupEvents(rows) {
       end_date: row.date,
       note: row.note,
       updated_at: row.updated_at || 0,
+      category: row.category || 'meetings',
       ids: [row.id]
     }
     groups.push(group)
@@ -80,22 +85,27 @@ function eventEtag(group) {
       group.date,
       group.end_date,
       group.note || '',
-      group.updated_at || 0
+      group.updated_at || 0,
+      group.category || 'meetings'
     ].join('|')
   )
   return `"${hash.slice(0, 32)}"`
 }
 
-function eventHref(username, group) {
+function eventHref(username, group, hrefCategory = null) {
   const uid = encodeURIComponent(eventUid(group))
-  return `${calendarCollectionHref(username)}${uid}.ics`
+  if (hrefCategory === '__root__') {
+    return `${calendarHomeHref(username)}${uid}.ics`
+  }
+  return `${calendarCollectionHref(username, hrefCategory || group.category || 'meetings')}${uid}.ics`
 }
 
 function buildEvent(group) {
   const start = parseUtcDate(group.date.split('T')[0])
   const end = parseUtcDate(group.end_date.split('T')[0])
   const note = group.note ? group.note.trim() : ''
-  const summary = note ? `见面：${note}` : '见面'
+  const category = getMeetingCategory(group.category || 'meetings') || MEETING_CATEGORIES[0]
+  const summary = note ? `${category.name}：${note}` : category.name
   const event = [
     'BEGIN:VEVENT',
     `UID:${eventUid(group)}`,
@@ -103,6 +113,7 @@ function buildEvent(group) {
     `DTSTART;VALUE=DATE:${formatIcsDate(start)}`,
     `DTEND;VALUE=DATE:${formatIcsDate(addDays(end, 1))}`,
     `SUMMARY:${escapeIcsText(summary)}`,
+    `CATEGORIES:${escapeIcsText(category.name)}`,
     'STATUS:CONFIRMED',
     'TRANSP:TRANSPARENT',
     'END:VEVENT'
@@ -133,7 +144,7 @@ ${responses.join('\n')}${syncToken ? `\n<D:sync-token>${xmlEscape(syncToken)}</D
   })
 }
 
-function eventResponse(username, group) {
+function eventResponse(username, group, hrefCategory = null) {
   const props = [
     '<D:resourcetype/>',
     '<D:getcontenttype>text/calendar; component=vevent</D:getcontenttype>',
@@ -142,7 +153,7 @@ function eventResponse(username, group) {
   ]
 
   return `  <D:response>
-    <D:href>${xmlEscape(eventHref(username, group))}</D:href>
+    <D:href>${xmlEscape(eventHref(username, group, hrefCategory))}</D:href>
     <D:propstat>
       <D:prop>
         ${props.join('\n        ')}
@@ -296,26 +307,36 @@ function homeResponse(username, body = '', baseUrl = '') {
   </D:response>`
 }
 
-function calendarCollectionResponse(username, includeEvents, rows, body = '', baseUrl = '', collectionHref = null) {
+function calendarCollectionResponse(
+  username,
+  category,
+  includeEvents,
+  rows,
+  body = '',
+  baseUrl = '',
+  collectionHref = null,
+  hrefCategory = null
+) {
   const principalHref = absoluteHref(baseUrl, `/caldav/principal/${encodeURIComponent(username)}/`)
+  const categoryMeta = getMeetingCategory(category) || MEETING_CATEGORIES[0]
   const groups = groupEvents(rows)
-  const ctag = `${groups.length}-${rows.reduce((total, row) => total + (row.updated_at || 0), 0)}`
+  const ctag = `${category}-${groups.length}-${rows.reduce((total, row) => total + (row.updated_at || 0), 0)}`
   const lastModified = new Date(
     rows.reduce((latest, row) => Math.max(latest, row.updated_at || 0), 0)
   ).toUTCString()
   const eventResponses = includeEvents
-    ? groups.map(group => eventResponse(username, group))
+    ? groups.map(group => eventResponse(username, group, hrefCategory))
     : []
 
   const props = selectPropfindProps(body, [
-    '<D:displayname>Timeline</D:displayname>',
+    `<D:displayname>${xmlEscape(categoryMeta.name)}</D:displayname>`,
     `<D:current-user-principal>\n          <D:href>${xmlEscape(principalHref)}</D:href>\n        </D:current-user-principal>`,
     `<D:principal-URL><D:href>${xmlEscape(principalHref)}</D:href></D:principal-URL>`,
     `<D:owner><D:href>${xmlEscape(principalHref)}</D:href></D:owner>`,
     '<D:resourcetype><D:collection/><C:calendar/></D:resourcetype>',
     `<C:calendar-home-set>\n          <D:href>${xmlEscape(absoluteHref(baseUrl, calendarHomeHref(username)))}</D:href>\n        </C:calendar-home-set>`,
-    '<C:calendar-description>Timeline meetings</C:calendar-description>',
-    '<IC:calendar-color>#FF5C8A</IC:calendar-color>',
+    `<C:calendar-description>${xmlEscape(categoryMeta.name)}</C:calendar-description>`,
+    `<IC:calendar-color>${categoryMeta.color}</IC:calendar-color>`,
     '<C:supported-calendar-component-set><C:comp name="VEVENT"/></C:supported-calendar-component-set>',
     `<C:supported-calendar-data>\n          <C:calendar-data-type content-type="text/calendar" version="2.0"/>\n        </C:supported-calendar-data>`,
     currentUserPrivilegeSet(),
@@ -333,7 +354,7 @@ function calendarCollectionResponse(username, includeEvents, rows, body = '', ba
 
   return [
     `  <D:response>
-    <D:href>${xmlEscape(collectionHref || absoluteHref(baseUrl, calendarCollectionHref(username)))}</D:href>
+    <D:href>${xmlEscape(collectionHref || absoluteHref(baseUrl, calendarCollectionHref(username, category)))}</D:href>
     <D:propstat>
       <D:prop>
         ${props.join('\n        ')}
@@ -370,18 +391,18 @@ function homeCollectionResponse(username, includeChild, body = '', baseUrl = '')
     </D:propstat>
   </D:response>`
 
-  const childResponse = includeChild
-    ? calendarCollectionResponse(
+  const childResponses = includeChild
+    ? MEETING_CATEGORIES.map(category => calendarCollectionResponse(
       username,
+      category.id,
       false,
       [],
       body,
-      baseUrl,
-      absoluteHref(baseUrl, calendarCollectionHref(username))
-    )
+      baseUrl
+    ))
     : []
 
-  return [homeResponse, ...childResponse]
+  return [homeResponse, ...childResponses.flat()]
 }
 
 function unauthorized() {
@@ -431,6 +452,54 @@ function propPatchResponse(username, properties, isCalendarCollection = false) {
       <D:status>HTTP/1.1 200 OK</D:status>
     </D:propstat>
   </D:response>`
+}
+
+function resolveCategorySegment(segment) {
+  const category = decodeURIComponent(segment)
+  return category === 'timeline' ? 'meetings' : category
+}
+
+function isCategorySegment(segment) {
+  const category = resolveCategorySegment(segment)
+  return Boolean(getMeetingCategory(category))
+}
+
+function parseCalendarCollectionPath(pathname, username) {
+  const match = pathname.match(/^\/caldav\/calendars\/([^/]+)\/([^/]+)$/)
+  if (!match || decodeURIComponent(match[1]) !== username || !isCategorySegment(match[2])) {
+    return null
+  }
+
+  return {
+    category: resolveCategorySegment(match[2]),
+    hrefCategory: decodeURIComponent(match[2]) === 'timeline' ? 'timeline' : resolveCategorySegment(match[2])
+  }
+}
+
+function parseEventPath(pathname, username) {
+  const categoryMatch = pathname.match(/^\/caldav\/calendars\/([^/]+)\/([^/]+)\/(.+)\.ics$/)
+  if (
+    categoryMatch &&
+    decodeURIComponent(categoryMatch[1]) === username &&
+    isCategorySegment(categoryMatch[2])
+  ) {
+    return {
+      category: resolveCategorySegment(categoryMatch[2]),
+      hrefCategory: decodeURIComponent(categoryMatch[2]) === 'timeline'
+        ? 'timeline'
+        : resolveCategorySegment(categoryMatch[2]),
+      uid: decodeURIComponent(categoryMatch[3])
+    }
+  }
+
+  const legacyMatch = pathname.match(/^\/caldav\/calendars\/([^/]+)\/(.+)\.ics$/)
+  if (!legacyMatch || decodeURIComponent(legacyMatch[1]) !== username) return null
+
+  return {
+    category: 'meetings',
+    hrefCategory: '__root__',
+    uid: decodeURIComponent(legacyMatch[2])
+  }
 }
 
 function caldavError(status, message) {
@@ -537,16 +606,18 @@ export async function authenticateCalDav(req, dependencies = {}) {
   }
 }
 
-function getRows(dependencies = {}) {
+function getRows(dependencies = {}, category = '') {
   const { prepared } = dependencies
-  return (prepared || preparedStatements).getCalDavMeetings.all()
+  const statements = prepared || preparedStatements
+  return category ? statements.getCalDavMeetingsByCategory.all(category) : statements.getCalDavMeetings.all()
 }
 
-function getEventByUid(uid, dependencies = {}) {
+function getEventByUid(uid, dependencies = {}, category = '') {
   const { prepared } = dependencies
   const statements = prepared || preparedStatements
 
   const rows = statements.getCalDavMeetingsByUid.all(uid)
+    .filter(row => !category || (row.category || 'meetings') === category)
   if (rows.length) return groupEvents(rows)[0]
 
   const legacyId = Number(uid.replace(/@timeline$/, ''))
@@ -656,11 +727,15 @@ export function parseCalDavEvent(body) {
   if (dates.length > MAX_EVENT_DAYS) return { error: '日程范围最多支持366天' }
 
   const normalizedSummary = summary.trim()
-  const note = normalizedSummary === '见面'
-    ? ''
-    : normalizedSummary.startsWith('见面：')
-      ? normalizedSummary.slice(3)
-      : normalizedSummary
+  const categoryPrefix = MEETING_CATEGORIES.find(category => {
+    const label = category.name
+    return normalizedSummary === label || normalizedSummary.startsWith(`${label}：`)
+  })
+  const note = categoryPrefix
+    ? normalizedSummary === categoryPrefix.name
+      ? ''
+      : normalizedSummary.slice(categoryPrefix.name.length + 1)
+    : normalizedSummary
 
   return {
     uid: uid || `${crypto.randomUUID()}@timeline`,
@@ -669,7 +744,7 @@ export function parseCalDavEvent(body) {
   }
 }
 
-async function putEvent(req, username, uid, dependencies = {}) {
+async function putEvent(req, username, uid, category, dependencies = {}) {
   const body = await req.text()
   const parsed = parseCalDavEvent(body)
   if (parsed.error) return caldavError(400, parsed.error)
@@ -679,7 +754,7 @@ async function putEvent(req, username, uid, dependencies = {}) {
 
   const { db: database = db, prepared } = dependencies
   const statements = prepared || preparedStatements
-  const existing = getEventByUid(uid, dependencies)
+  const existing = getEventByUid(uid, dependencies, category)
   const ifMatch = req.headers.get('if-match')?.trim()
 
   if (ifMatch && ifMatch !== '*') {
@@ -689,7 +764,7 @@ async function putEvent(req, username, uid, dependencies = {}) {
   }
 
   for (const date of parsed.dates) {
-    const occupied = statements.getMeetingByDate.get(date)
+    const occupied = statements.getMeetingByDate.get(date, category)
     if (occupied && (!existing || !existing.ids.includes(Number(occupied.id)))) {
       return caldavError(409, `该日期已存在：${date}`)
     }
@@ -704,12 +779,12 @@ async function putEvent(req, username, uid, dependencies = {}) {
     }
 
     for (const date of parsed.dates) {
-      statements.insertMeeting.run(date, parsed.note, parsed.uid, now)
+      statements.insertMeeting.run(date, parsed.note, parsed.uid, now, category)
     }
   })
   save()
 
-  const saved = getEventByUid(parsed.uid, dependencies)
+  const saved = getEventByUid(parsed.uid, dependencies, category)
   return new Response(null, {
     status: existing ? 204 : 201,
     headers: {
@@ -719,8 +794,8 @@ async function putEvent(req, username, uid, dependencies = {}) {
   })
 }
 
-function deleteEvent(username, uid, req, dependencies = {}) {
-  const existing = getEventByUid(uid, dependencies)
+function deleteEvent(username, uid, category, req, dependencies = {}) {
+  const existing = getEventByUid(uid, dependencies, category)
   if (!existing) return caldavError(404, 'Not Found')
 
   const ifMatch = req.headers.get('if-match')?.trim()
@@ -774,14 +849,28 @@ async function handleCalDavRequest(req, { method, pathname }, dependencies = {})
       return multistatus([homeResponse(user.username, requestBody, baseUrl)])
     }
 
-    const calendarCollectionMatch = normalized.match(/^\/caldav\/calendars\/([^/]+)\/timeline$/)
+    const calendarCollectionMatch = /^\/caldav\/calendars\/([^/]+)\/([^/]+)$/.exec(normalized)
     if (
       calendarCollectionMatch &&
-      decodeURIComponent(calendarCollectionMatch[1]) === user.username
+      decodeURIComponent(calendarCollectionMatch[1]) === user.username &&
+      isCategorySegment(calendarCollectionMatch[2])
     ) {
-      const rows = getRows(dependencies)
+      const category = resolveCategorySegment(calendarCollectionMatch[2])
+      const hrefCategory = decodeURIComponent(calendarCollectionMatch[2]) === 'timeline'
+        ? 'timeline'
+        : category
+      const rows = getRows(dependencies, category)
       const includeEvents = req.headers.get('depth') !== '0'
-      return multistatus(calendarCollectionResponse(user.username, includeEvents, rows, requestBody, baseUrl))
+      return multistatus(calendarCollectionResponse(
+        user.username,
+        category,
+        includeEvents,
+        rows,
+        requestBody,
+        baseUrl,
+        absoluteHref(baseUrl, `${normalized}/`),
+        hrefCategory
+      ))
     }
 
     const shortTimelineCollectionMatch = normalized.match(/^\/caldav\/([^/]+)\/timeline$/)
@@ -790,9 +879,18 @@ async function handleCalDavRequest(req, { method, pathname }, dependencies = {})
       !['principal', 'calendars'].includes(shortTimelineCollectionMatch[1]) &&
       decodeURIComponent(shortTimelineCollectionMatch[1]) === user.username
     ) {
-      const rows = getRows(dependencies)
+      const rows = getRows(dependencies, 'meetings')
       const includeEvents = req.headers.get('depth') !== '0'
-      return multistatus(calendarCollectionResponse(user.username, includeEvents, rows, requestBody, baseUrl))
+      return multistatus(calendarCollectionResponse(
+        user.username,
+        'meetings',
+        includeEvents,
+        rows,
+        requestBody,
+        baseUrl,
+        absoluteHref(baseUrl, `${normalized}/`),
+        'timeline'
+      ))
     }
 
     const collectionMatch = normalized.match(/^\/caldav\/calendars\/([^/]+)$/)
@@ -810,38 +908,41 @@ async function handleCalDavRequest(req, { method, pathname }, dependencies = {})
       !['principal', 'calendars'].includes(shortCollectionMatch[1]) &&
       decodeURIComponent(shortCollectionMatch[1]) === user.username
     ) {
-      const rows = getRows(dependencies)
+      const rows = getRows(dependencies, 'meetings')
       const depthZero = req.headers.get('depth') === '0'
       return multistatus(calendarCollectionResponse(
         user.username,
+        'meetings',
         !depthZero,
         rows,
         requestBody,
         baseUrl,
-        absoluteHref(baseUrl, calendarHomeHref(user.username))
+        absoluteHref(baseUrl, `${normalized}/`),
+        'meetings'
       ))
     }
 
-    const eventMatch = normalized.match(/^\/caldav\/calendars\/([^/]+)(?:\/timeline)?\/(.+)\.ics$/)
+    const eventMatch = parseEventPath(normalized, user.username)
     if (eventMatch) {
-      if (decodeURIComponent(eventMatch[1]) !== user.username) {
-        return caldavError(403, 'Forbidden')
-      }
-      const group = getEventByUid(decodeURIComponent(eventMatch[2]), dependencies)
+      const group = getEventByUid(eventMatch.uid, dependencies, eventMatch.category)
       if (!group) return caldavError(404, 'Not Found')
-      return multistatus([eventResponse(user.username, group)])
+      return multistatus([eventResponse(user.username, group, eventMatch.hrefCategory)])
     }
 
     return caldavError(404, 'Not Found')
   }
 
   if (method === 'REPORT') {
-    const collectionMatch = normalized.match(/^\/caldav\/calendars\/([^/]+)(?:\/timeline)?$/)
-    if (!collectionMatch || decodeURIComponent(collectionMatch[1]) !== user.username) {
+    const homeMatch = normalized.match(/^\/caldav\/calendars\/([^/]+)$/)
+    const collection = parseCalendarCollectionPath(normalized, user.username)
+      || (homeMatch && decodeURIComponent(homeMatch[1]) === user.username
+        ? { category: '', hrefCategory: '__root__' }
+        : null)
+    if (!collection) {
       return caldavError(403, 'Forbidden')
     }
 
-    const rows = getRows(dependencies)
+    const rows = getRows(dependencies, collection.category)
     const groups = groupEvents(rows)
     const body = await req.text().catch(() => '')
     let selected = groups
@@ -852,23 +953,35 @@ async function handleCalDavRequest(req, { method, pathname }, dependencies = {})
           .map(match => match[1].trim())
       )
       selected = groups.filter(group => {
-        const href = eventHref(user.username, group)
-        const legacyHref = href.replace(`${encodeURIComponent(user.username)}/timeline/`, `${encodeURIComponent(user.username)}/`)
-        return hrefs.has(href) || hrefs.has(decodeURIComponent(href)) ||
-          hrefs.has(legacyHref) || hrefs.has(decodeURIComponent(legacyHref))
+        const href = eventHref(user.username, group, collection.hrefCategory)
+        const hrefCandidates = [href, decodeURIComponent(href)]
+        if (collection.hrefCategory === 'timeline') {
+          const meetingHref = eventHref(user.username, group, 'meetings')
+          hrefCandidates.push(meetingHref, decodeURIComponent(meetingHref))
+          const rootHref = eventHref(user.username, group, '__root__')
+          hrefCandidates.push(rootHref, decodeURIComponent(rootHref))
+        }
+        return hrefCandidates.some(candidate => hrefs.has(candidate))
       })
     }
 
-    const responses = selected.map(group => eventResponse(user.username, group))
+    const responses = selected.map(group => eventResponse(
+      user.username,
+      group,
+      collection.hrefCategory
+    ))
     return multistatus(
       responses,
-      body.includes('sync-collection') ? `timeline-${groups.length}` : null
+      body.includes('sync-collection') ? `${collection.category}-${groups.length}` : null
     )
   }
 
   if (method === 'PROPPATCH') {
-    const collectionMatch = normalized.match(/^\/caldav\/calendars\/([^/]+)(?:\/timeline)?$/)
-    if (!collectionMatch || decodeURIComponent(collectionMatch[1]) !== user.username) {
+    const homeMatch = normalized.match(/^\/caldav\/calendars\/([^/]+)$/)
+    const collection = parseCalendarCollectionPath(normalized, user.username) || (homeMatch && decodeURIComponent(homeMatch[1]) === user.username
+      ? { category: 'meetings', hrefCategory: 'meetings' }
+      : null)
+    if (!collection) {
       return caldavError(403, 'Forbidden')
     }
 
@@ -877,14 +990,27 @@ async function handleCalDavRequest(req, { method, pathname }, dependencies = {})
     if (!properties.length) return caldavError(400, 'PROPPATCH 请求格式无效')
 
     // Apple clients set display-only properties such as calendar color here.
-    // Timeline has one fixed server-owned calendar, so these values are accepted
-    // for the current request but are not persisted.
-    return multistatus([propPatchResponse(user.username, properties, normalized.endsWith('/timeline'))])
+    // Timeline owns fixed server-side calendars, so display-only properties are
+    // accepted but not persisted.
+    return multistatus([propPatchResponse(user.username, properties, true)])
   }
 
-  const eventMatch = normalized.match(/^\/caldav\/calendars\/([^/]+)(?:\/timeline)?\/(.+)\.ics$/)
+  const eventMatch = parseEventPath(normalized, user.username)
 
   if (method === 'GET' || method === 'HEAD') {
+    const categoryCollection = parseCalendarCollectionPath(normalized, user.username)
+    if (categoryCollection) {
+      const rows = getRows(dependencies, categoryCollection.category)
+      return new Response(buildIcs(rows), {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/calendar; charset=utf-8',
+          'Cache-Control': 'no-store',
+          DAV: '1, calendar-access'
+        }
+      })
+    }
+
     if (
       normalized === `/caldav/calendars/${encodeURIComponent(user.username)}` ||
       normalized === `/caldav/calendars/${encodeURIComponent(user.username)}/timeline`
@@ -900,8 +1026,8 @@ async function handleCalDavRequest(req, { method, pathname }, dependencies = {})
       })
     }
 
-    if (eventMatch && decodeURIComponent(eventMatch[1]) === user.username) {
-      const group = getEventByUid(decodeURIComponent(eventMatch[2]), dependencies)
+    if (eventMatch) {
+      const group = getEventByUid(eventMatch.uid, dependencies, eventMatch.category)
       if (!group) return caldavError(404, 'Not Found')
       return new Response(buildEvent(group), {
         status: 200,
@@ -917,17 +1043,23 @@ async function handleCalDavRequest(req, { method, pathname }, dependencies = {})
   }
 
   if (method === 'PUT' && eventMatch) {
-    if (decodeURIComponent(eventMatch[1]) !== user.username) {
-      return caldavError(403, 'Forbidden')
-    }
-    return putEvent(req, user.username, decodeURIComponent(eventMatch[2]), dependencies)
+    return putEvent(
+      req,
+      user.username,
+      eventMatch.uid,
+      eventMatch.category,
+      dependencies
+    )
   }
 
   if (method === 'DELETE' && eventMatch) {
-    if (decodeURIComponent(eventMatch[1]) !== user.username) {
-      return caldavError(403, 'Forbidden')
-    }
-    return deleteEvent(user.username, decodeURIComponent(eventMatch[2]), req, dependencies)
+    return deleteEvent(
+      user.username,
+      eventMatch.uid,
+      eventMatch.category,
+      req,
+      dependencies
+    )
   }
 
   if (['PUT', 'DELETE'].includes(method)) return caldavError(400, 'Bad Request')

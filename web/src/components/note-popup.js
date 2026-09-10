@@ -1,6 +1,7 @@
 // src/components/note-popup.js
 import { showConfirm } from './prompt-modal.js'
 import { showToast } from '../utils/ui.js'
+import { MEETING_CATEGORIES } from '../utils/constants.js'
 
 // 记录当前弹窗的 keydown 处理器，确保替换时能清理
 let currentKeyDownHandler = null
@@ -44,6 +45,22 @@ export function showNotePopup(dateStr, meeting, onSave, onDelete) {
   textarea.placeholder = '备注（可选）'
   textarea.value = meeting?.note || ''
   inner.appendChild(textarea)
+
+  const categoryLabel = document.createElement('label')
+  categoryLabel.className = 'modal-label'
+  categoryLabel.textContent = '分类'
+  inner.appendChild(categoryLabel)
+
+  const categorySelect = document.createElement('select')
+  categorySelect.className = 'modal-select'
+  MEETING_CATEGORIES.forEach((category) => {
+    const option = document.createElement('option')
+    option.value = category.id
+    option.textContent = category.name
+    categorySelect.appendChild(option)
+  })
+  categorySelect.value = meeting?.category || 'meetings'
+  inner.appendChild(categorySelect)
 
   // 按钮容器
   const btnWrap = document.createElement('div')
@@ -109,7 +126,7 @@ export function showNotePopup(dateStr, meeting, onSave, onDelete) {
     saveBtn.disabled = true
     saveBtn.textContent = '保存中...'
     try {
-      await onSave(note)
+      await onSave({ note, category: categorySelect.value })
       close()
     } catch (e) {
       saveBtn.disabled = false

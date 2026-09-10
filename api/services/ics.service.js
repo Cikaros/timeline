@@ -1,5 +1,9 @@
 import { db, preparedStatements } from '../db/index.js'
 import { getSubscriptions } from './subscriptions.service.js'
+import {
+  MEETING_CATEGORIES,
+  getMeetingCategory
+} from './categories.service.js'
 
 const MAX_FUTURE_YEARS = 1
 
@@ -113,7 +117,8 @@ function buildIcs(meetings, now = new Date()) {
     if (start > maximumDate) continue
 
     const note = meeting.note ? meeting.note.trim() : ''
-    const summary = note ? `见面：${note}` : '见面'
+    const category = getMeetingCategory(meeting.category) || MEETING_CATEGORIES[0]
+    const summary = note ? `${category.name}：${note}` : category.name
     lines.push(
       'BEGIN:VEVENT',
       `UID:${meeting.uid || `${meeting.id}@timeline`}`,
@@ -121,6 +126,7 @@ function buildIcs(meetings, now = new Date()) {
       `DTSTART;VALUE=DATE:${formatIcsDate(start)}`,
       `DTEND;VALUE=DATE:${formatIcsDate(addDays(end, 1))}`,
       `SUMMARY:${escapeIcsText(summary)}`,
+      `CATEGORIES:${escapeIcsText(category.name)}`,
       'STATUS:CONFIRMED',
       'TRANSP:TRANSPARENT',
       'END:VEVENT'

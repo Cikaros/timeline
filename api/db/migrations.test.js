@@ -11,7 +11,8 @@ describe('database migrations', () => {
       { version: 1 },
       { version: 2 },
       { version: 3 },
-      { version: 4 }
+      { version: 4 },
+      { version: 5 }
     ])
 
     const userColumns = database.query('PRAGMA table_info(users)').all().map(column => column.name)
@@ -22,6 +23,7 @@ describe('database migrations', () => {
 
     expect(userColumns).toContain('role')
     expect(meetingColumns).toContain('uid')
+    expect(meetingColumns).toContain('category')
     expect(sessionColumns).toContain('user_id')
     expect(subscriptionColumns).toContain('user_id')
   })

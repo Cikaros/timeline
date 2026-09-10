@@ -14,11 +14,13 @@ function createTestDb() {
   )`)
   database.run(`CREATE TABLE meetings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    date TEXT NOT NULL UNIQUE,
+    date TEXT NOT NULL,
     note TEXT,
     created_at INTEGER NOT NULL DEFAULT 0,
     uid TEXT,
-    updated_at INTEGER NOT NULL
+    updated_at INTEGER NOT NULL,
+    category TEXT NOT NULL DEFAULT 'meetings',
+    UNIQUE(date, category)
   )`)
   database.run(`CREATE TABLE sessions (token TEXT PRIMARY KEY, expires INTEGER NOT NULL, created_at INTEGER NOT NULL DEFAULT 0, user_id INTEGER)`)
   database.run(`CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at INTEGER NOT NULL)`)
@@ -31,15 +33,16 @@ function createTestDb() {
 
   const prepared = {
     getUserByUsername: database.prepare('SELECT id, username, role, password_hash, created_at, updated_at FROM users WHERE username = ?'),
-    getCalDavMeetings: database.prepare('SELECT id, date, note, uid, updated_at FROM meetings ORDER BY date ASC, id ASC'),
-    getCalDavMeetingsByUid: database.prepare('SELECT id, date, note, uid, updated_at FROM meetings WHERE uid = ? ORDER BY date ASC, id ASC'),
-    getCalDavMeetingById: database.prepare('SELECT id, date, note, uid, updated_at FROM meetings WHERE id = ?'),
-    getMeetingByDate: database.prepare('SELECT id FROM meetings WHERE date = ?'),
-    insertMeeting: database.prepare('INSERT INTO meetings (date, note, uid, updated_at) VALUES (?, ?, ?, ?)'),
-    updateMeetingNote: database.prepare('UPDATE meetings SET note = ?, updated_at = ? WHERE id = ?'),
+    getCalDavMeetings: database.prepare('SELECT id, date, note, uid, updated_at, category FROM meetings ORDER BY date ASC, id ASC'),
+    getCalDavMeetingsByCategory: database.prepare('SELECT id, date, note, uid, updated_at, category FROM meetings WHERE category = ? ORDER BY date ASC, id ASC'),
+    getCalDavMeetingsByUid: database.prepare('SELECT id, date, note, uid, updated_at, category FROM meetings WHERE uid = ? ORDER BY date ASC, id ASC'),
+    getCalDavMeetingById: database.prepare('SELECT id, date, note, uid, updated_at, category FROM meetings WHERE id = ?'),
+    getMeetingByDate: database.prepare('SELECT id FROM meetings WHERE date = ? AND category = ?'),
+    insertMeeting: database.prepare('INSERT INTO meetings (date, note, uid, updated_at, category) VALUES (?, ?, ?, ?, ?)'),
+    updateMeetingNote: database.prepare('UPDATE meetings SET note = ?, category = ?, updated_at = ? WHERE id = ?'),
     deleteMeeting: database.prepare('DELETE FROM meetings WHERE id = ?'),
     deleteMeetingsByUid: database.prepare('DELETE FROM meetings WHERE uid = ?'),
-    getIcsMeetings: database.prepare('SELECT id, date, note, uid, updated_at FROM meetings WHERE date <= ? ORDER BY date ASC, id ASC'),
+    getIcsMeetings: database.prepare('SELECT id, date, note, uid, updated_at, category FROM meetings WHERE date <= ? ORDER BY date ASC, id ASC'),
   }
 
   return { database, prepared }
@@ -83,7 +86,7 @@ describe('CalDAV service', () => {
     const passwordHash = await Bun.password.hash('secret')
     prepared.insertUser = database.prepare('INSERT INTO users (username, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?)')
     prepared.insertUser.run('owner', passwordHash, 1, 1)
-    prepared.insertMeeting.run('2026-09-01', 'Old', 'legacy@timeline', 1)
+    prepared.insertMeeting.run('2026-09-01', 'Old', 'legacy@timeline', 1, 'meetings')
 
     const context = { method: 'PROPFIND', pathname: '/caldav/' }
     const discovery = await handleCalDav(
@@ -180,7 +183,14 @@ describe('CalDAV service', () => {
     expect(homeBody).toContain('<D:displayname>Timeline</D:displayname>')
     expect(homeBody).toContain('<IC:calendar-color>#FF5C8A</IC:calendar-color>')
     expect(homeBody).toContain('<C:supported-calendar-component-set><C:comp name="VEVENT"/></C:supported-calendar-component-set>')
-    expect(homeBody).toContain('<D:href>http://localhost/caldav/calendars/owner/timeline/</D:href>')
+    expect(homeBody).toContain('<D:href>http://localhost/caldav/calendars/owner/meetings/</D:href>')
+    expect(homeBody).toContain('<D:href>http://localhost/caldav/calendars/owner/travel/</D:href>')
+    expect(homeBody).toContain('<D:href>http://localhost/caldav/calendars/owner/dating/</D:href>')
+    expect(homeBody).toContain('<D:href>http://localhost/caldav/calendars/owner/anniversary/</D:href>')
+    expect(homeBody).toContain('<D:displayname>见面</D:displayname>')
+    expect(homeBody).toContain('<D:displayname>旅行</D:displayname>')
+    expect(homeBody).toContain('<D:displayname>约会</D:displayname>')
+    expect(homeBody).toContain('<D:displayname>纪念日</D:displayname>')
 
     const homeDepthZero = await handleCalDav(
       new Request('http://localhost/caldav/calendars/owner/', {
@@ -292,6 +302,42 @@ describe('CalDAV service', () => {
     )
     expect(created.status).toBe(201)
     expect(prepared.getCalDavMeetings.all().map(row => row.date)).toContain('2026-09-10')
+
+    const travelEvent = [
+      'BEGIN:VCALENDAR',
+      'BEGIN:VEVENT',
+      'UID:travel-event@calendar',
+      'SUMMARY:Trip',
+      'DTSTART;VALUE=DATE:20260910',
+      'DTEND;VALUE=DATE:20260911',
+      'END:VEVENT',
+      'END:VCALENDAR'
+    ].join('\r\n')
+    const travelCreated = await handleCalDav(
+      new Request('http://localhost/caldav/calendars/owner/travel/travel-event%40calendar.ics', {
+        method: 'PUT',
+        headers: { ...basicAuth(), 'Content-Type': 'text/calendar' },
+        body: travelEvent
+      }),
+      { method: 'PUT', pathname: '/caldav/calendars/owner/travel/travel-event%40calendar.ics' },
+      { database, prepared }
+    )
+    expect(travelCreated.status).toBe(201)
+    expect(prepared.getCalDavMeetings.all().find(row => row.uid === 'travel-event@calendar').category).toBe('travel')
+
+    const travelReport = await handleCalDav(
+      new Request('http://localhost/caldav/calendars/owner/travel/', {
+        method: 'REPORT',
+        headers: basicAuth(),
+        body: '<C:calendar-query xmlns:C="urn:ietf:params:xml:ns:caldav"/>'
+      }),
+      { method: 'REPORT', pathname: '/caldav/calendars/owner/travel/' },
+      { database, prepared }
+    )
+    expect(travelReport.status).toBe(207)
+    const travelReportBody = await travelReport.text()
+    expect(travelReportBody).toContain('travel-event%40calendar.ics')
+    expect(travelReportBody).not.toContain('new-event%40calendar.ics')
 
     const updatedBody = eventBody.replace('SUMMARY:Dinner', 'SUMMARY:Dinner\\, movie')
     const updated = await handleCalDav(

@@ -81,6 +81,33 @@ migrations.push({
   ],
 })
 
+migrations.push({
+  version: 5,
+  description: '新增见面记录分类',
+  up: [
+    `CREATE TABLE meetings_v5 (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      note TEXT,
+      created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now') * 1000),
+      uid TEXT,
+      updated_at INTEGER NOT NULL DEFAULT 0,
+      category TEXT NOT NULL DEFAULT 'meetings',
+      UNIQUE(date, category)
+    )`,
+    `INSERT INTO meetings_v5 (
+      id, date, note, created_at, uid, updated_at, category
+    )
+    SELECT
+      id, date, note, created_at, uid, updated_at, 'meetings'
+    FROM meetings`,
+    'DROP TABLE meetings',
+    'ALTER TABLE meetings_v5 RENAME TO meetings',
+    'CREATE INDEX IF NOT EXISTS idx_meetings_date_category ON meetings(date, category)',
+    'CREATE INDEX IF NOT EXISTS idx_meetings_uid ON meetings(uid)',
+  ],
+})
+
 /**
  * 执行数据库迁移
  * @param {import('bun:sqlite').Database} db

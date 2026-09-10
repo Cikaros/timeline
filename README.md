@@ -80,7 +80,7 @@ proxy_set_header X-Forwarded-Proto $scheme;
 
 - 登录认证（首次密码由 `DEFAULT_PASSWORD` 提供，首次登录后强制修改）
 - 账号管理（全局最多 2 个账号，默认账号名为 `owner`）
-- 添加/删除见面记录
+- 添加/删除见面记录，支持见面、旅行、约会、纪念日分类
 - 支持日期范围和多项输入（如 `20250101~20250105` 或逗号分隔）
 - 日历视图查看历史记录，今日高亮
 - 点击日期添加/编辑备注
@@ -90,7 +90,7 @@ proxy_set_header X-Forwarded-Proto $scheme;
 - 修改密码
 - 日历订阅链接管理
 - 可将 Timeline 日程添加到手机系统日历
-- CalDAV 双向同步（支持日历客户端新增/修改/删除全天事件）
+- CalDAV 双向同步（提供见面、旅行、约会、纪念日日历集合）
 - 响应式设计（适配 PC 和移动端）
 - 心形 SVG favicon
 
@@ -234,7 +234,7 @@ timeline/
 SQLite 数据库文件 `data/timeline.db`（由程序自动创建和管理）。
 
 表结构:
-- `meetings`: 见面记录（`date` UNIQUE, `note`, `created_at`）
+- `meetings`: 见面记录（`date` + `category` 唯一, `note`, `created_at`）
 - `settings`: 应用设置（`key` PRIMARY KEY, `value`, `updated_at`）
 - `sessions`: 认证会话（`token` PRIMARY KEY, `expires`, `created_at`）
 
@@ -248,7 +248,7 @@ Schema 通过 `api/db/migrations.js` 版本化迁移管理，新增迁移需追�
 - 会话存储: 数据库仅保存 token 的 SHA-256 摘要
 - 会话清理: 每 6 小时自动清除过期会话
 - 登录限流: 15 分钟内 5 次失败后锁定 15 分钟
-- Origin 校验: 非同源且非白名单 Origin 的写请求返回 403
+- Origin 校验: 通过代理头推导公开 Origin 后校验请求来源
 - 修改密码: 旧 session 全部失效，并立即签发新 session
 
 ## 已知问题
@@ -260,6 +260,5 @@ Schema 通过 `api/db/migrations.js` 版本化迁移管理，新增迁移需追�
 
 ## 计划功能
 
-1. 追加记录分类给见面记录添加标签（如：旅行、约会、纪念日）
-2. 统计图表：日期分布热力图、每月见面次数折线图
-3. 分享功能：生成见面天数分享卡片、导出见面记录 PDF
+1. 统计图表：日期分布热力图、每月见面次数折线图
+2. 分享功能：生成见面天数分享卡片、导出见面记录 PDF

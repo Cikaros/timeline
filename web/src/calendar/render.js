@@ -16,9 +16,12 @@ export function renderCalendar(onDateClick, signal) {
   calendarEl.innerHTML = ''
 
   // 构建日期-会议映射
-  const meetingMap = new Map(
-    appState.meetings.map(m => [m.date.split('T')[0], m])
-  )
+  const meetingMap = new Map()
+  for (const meeting of appState.meetings) {
+    const date = meeting.date.split('T')[0]
+    if (!meetingMap.has(date)) meetingMap.set(date, [])
+    meetingMap.get(date).push(meeting)
+  }
   const dateSet = new Set(meetingMap.keys())
 
   const today = new Date()
@@ -125,8 +128,11 @@ export function renderCalendar(onDateClick, signal) {
 
     if (dateSet.has(dateStr)) {
       td.classList.add('has-meeting')
-      const meeting = meetingMap.get(dateStr)
-      if (meeting?.note) td.classList.add('has-note')
+      const dayMeetings = meetingMap.get(dateStr)
+      const primaryCategory = dayMeetings[0]?.category || 'meetings'
+      td.classList.add(`category-${primaryCategory}`)
+      td.style.setProperty('--event-color', dayMeetings[0]?.color || 'var(--accent)')
+      if (dayMeetings.some(meeting => meeting.note)) td.classList.add('has-note')
     }
 
     if (dateStr === todayStr) td.classList.add('today')

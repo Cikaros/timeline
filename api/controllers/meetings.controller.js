@@ -13,7 +13,7 @@ export const meetingsController = {
   getMeetings(req, searchParams) {
     const corsHeaders = getCorsHeaders(req)
     const { limit, offset } = parsePagination(searchParams)
-    const result = getMeetings(limit, offset)
+    const result = getMeetings(limit, offset, searchParams?.get('category') || '')
     return jsonResponse(result, 200, corsHeaders)
   },
 
@@ -27,7 +27,11 @@ export const meetingsController = {
 
     const { input, date, note } = result.data
     const payload = input || date || ''
-    const insertResult = insertMeetings(payload, note?.trim() || '')
+    const insertResult = insertMeetings(
+      payload,
+      note?.trim() || '',
+      result.data.category || 'meetings'
+    )
     if (insertResult.inserted.length === 0 && insertResult.skipped.length === 0) {
       return errorResponse('未解析到有效日期', 400, corsHeaders)
     }
@@ -43,7 +47,11 @@ export const meetingsController = {
       return errorResponse(result.error.issues[0].message, 400, corsHeaders)
     }
 
-    const changes = updateMeetingNote(id, result.data.note)
+    const changes = updateMeetingNote(
+      id,
+      result.data.note,
+      result.data.category || 'meetings'
+    )
     if (changes === 0) {
       return errorResponse('记录不存在', 404, corsHeaders)
     }

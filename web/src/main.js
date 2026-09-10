@@ -46,6 +46,7 @@ async function render(reload = true, preloadedSettings = null) {
 
       const meetings = (meetingsData.rows || []).map(m => ({
         ...m,
+        category: m.category || 'meetings',
         date: m.date.split('T')[0]
       })).sort((a, b) => b.date.localeCompare(a.date))
 
@@ -87,13 +88,13 @@ async function render(reload = true, preloadedSettings = null) {
         dateStr,
         meeting,
         // 保存回调
-        async (note) => {
+        async ({ note, category }) => {
           try {
             if (meeting) {
-              await meetingsAPI.updateNote(meeting.id, note)
-              showToast('备注已保存')
+              await meetingsAPI.updateNote(meeting.id, note, category)
+              showToast('记录已保存')
             } else if (note) {
-              await meetingsAPI.create(dateStr, note)
+              await meetingsAPI.create(dateStr, note, category)
               showToast('已添加记录')
             }
             document.dispatchEvent(new CustomEvent('meetings:changed'))
@@ -625,7 +626,7 @@ async function createApp() {
     <div class="grid">
       <div class="panel">
         <div class="panel-heading">
-          <div class="panel-title">添加一次见面</div>
+          <div class="panel-title">添加记录</div>
         </div>
         <form id="meet-form" data-mode="date">
           <div class="segmented-control" role="group" aria-label="日期输入方式">
@@ -639,6 +640,15 @@ async function createApp() {
           <div id="meet-input-field" class="meet-field" hidden>
             <label class="field-label" for="meet-input">日期列表</label>
             <textarea id="meet-input" rows="4" placeholder="20250101、20250105 或 20250101~20250105"></textarea>
+          </div>
+          <div class="meet-field">
+            <label class="field-label" for="meet-category">分类</label>
+            <select id="meet-category" class="meet-select">
+              <option value="meetings">见面</option>
+              <option value="travel">旅行</option>
+              <option value="dating">约会</option>
+              <option value="anniversary">纪念日</option>
+            </select>
           </div>
           <div class="meet-field">
             <label class="field-label" for="meet-note">备注</label>
@@ -749,7 +759,11 @@ function bindEvents(signal) {
       return
     }
 
-    const existingDates = new Set(appState.meetings.map(m => m.date))
+    const categoryField = document.getElementById('meet-category')
+    const category = categoryField?.value || 'meetings'
+    const existingDates = new Set(
+      appState.meetings.map(m => `${m.date}:${m.category || 'meetings'}`)
+    )
     const newDates = parsedDates.filter(d => !existingDates.has(d))
     const duplicateDates = parsedDates.filter(d => existingDates.has(d))
 
@@ -767,12 +781,12 @@ function bindEvents(signal) {
     submitBtn.disabled = true
     submitBtn.textContent = '添加中...'
     try {
-      const result = await meetingsAPI.create(newDates.join(','), note)
+      const result = await meetingsAPI.create(newDates.join(','), note, category)
       const inserted = new Set((result?.inserted || []).map(i => i.date))
       const skipped = new Set(result?.skipped || [])
 
       const insertedDates = newDates.filter(d => inserted.has(d))
-      const skippedDates = newDates.filter(d => skipped.has(d) || (existingDates.has(d) && !inserted.has(d)))
+      const skippedDates = newDates.filter(d => skipped.has(d) || (existingDates.has(`${d}:${category}`) && !inserted.has(d)))
       const missingDates = newDates.filter(d => !inserted.has(d) && !skippedDates.includes(d))
 
       if (insertedDates.length) showToast(`已添加：${insertedDates.join(', ')}`, 'info')

@@ -80,18 +80,18 @@ export const meetingsAPI = {
     return { rows, total }
   },
 
-  async create(input, note) {
+  async create(input, note, category = 'meetings') {
     const response = await apiFetch('/api/meetings', {
       method: 'POST',
-      body: JSON.stringify({ input, note })
+      body: JSON.stringify({ input, note, category })
     })
     return response.json()
   },
 
-  async updateNote(id, note) {
+  async updateNote(id, note, category = 'meetings') {
     const response = await apiFetch(`/api/meetings/${id}`, {
       method: 'POST',
-      body: JSON.stringify({ note })
+      body: JSON.stringify({ note, category })
     })
     return response.json()
   },

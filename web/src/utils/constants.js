@@ -13,3 +13,10 @@ export const COLORS = {
   error: 'rgba(255,90,90,0.95)',
   info: 'rgba(0,0,0,0.7)'
 }
+
+export const MEETING_CATEGORIES = [
+  { id: 'meetings', name: '见面' },
+  { id: 'travel', name: '旅行' },
+  { id: 'dating', name: '约会' },
+  { id: 'anniversary', name: '纪念日' }
+]
