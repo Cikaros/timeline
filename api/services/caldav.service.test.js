@@ -114,7 +114,7 @@ describe('CalDAV service', () => {
     const defaultNamespaceBody = await defaultNamespaceDiscovery.text()
     expect(defaultNamespaceBody).toContain('<D:current-user-principal>')
     expect(defaultNamespaceBody).toContain(
-      '<D:href>http://localhost/caldav/principal/owner/</D:href>'
+      '<D:href>/caldav/principal/owner/</D:href>'
     )
     expect(defaultNamespaceBody).not.toContain('<D:prop>\n        \n      </D:prop>')
 
@@ -178,20 +178,20 @@ describe('CalDAV service', () => {
     )
     expect(home.status).toBe(207)
     const homeBody = await home.text()
-    expect(homeBody).toContain('<D:href>http://localhost/caldav/calendars/owner/</D:href>')
+    expect(homeBody).toContain('<D:href>/caldav/calendars/owner/</D:href>')
     expect(homeBody).toContain('<D:resourcetype><D:collection/></D:resourcetype>')
     expect(homeBody).toContain('<D:displayname>Timeline</D:displayname>')
     expect(homeBody).toContain('<IC:calendar-color>#FF5C8A</IC:calendar-color>')
     expect(homeBody).toContain('<C:supported-calendar-component-set><C:comp name="VEVENT"/></C:supported-calendar-component-set>')
-    expect(homeBody).toContain('<D:href>http://localhost/caldav/calendars/owner/meetings/</D:href>')
-    expect(homeBody).toContain('<D:href>http://localhost/caldav/calendars/owner/travel/</D:href>')
-    expect(homeBody).toContain('<D:href>http://localhost/caldav/calendars/owner/dating/</D:href>')
-    expect(homeBody).toContain('<D:href>http://localhost/caldav/calendars/owner/anniversary/</D:href>')
+    expect(homeBody).toContain('<D:href>/caldav/calendars/owner/meetings/</D:href>')
+    expect(homeBody).toContain('<D:href>/caldav/calendars/owner/travel/</D:href>')
+    expect(homeBody).toContain('<D:href>/caldav/calendars/owner/dating/</D:href>')
+    expect(homeBody).toContain('<D:href>/caldav/calendars/owner/anniversary/</D:href>')
     expect(homeBody).toContain('<D:displayname>见面</D:displayname>')
     expect(homeBody).toContain('<D:displayname>旅行</D:displayname>')
     expect(homeBody).toContain('<D:displayname>约会</D:displayname>')
     expect(homeBody).toContain('<D:displayname>纪念日</D:displayname>')
-    expect(homeBody).toContain('<D:href>http://localhost/caldav/calendars/owner/birthday/</D:href>')
+    expect(homeBody).toContain('<D:href>/caldav/calendars/owner/birthday/</D:href>')
     expect(homeBody).toContain('<D:displayname>生日</D:displayname>')
 
     const homeDepthZero = await handleCalDav(
@@ -205,7 +205,7 @@ describe('CalDAV service', () => {
     expect(homeDepthZero.status).toBe(207)
     const homeDepthZeroBody = await homeDepthZero.text()
     expect(homeDepthZeroBody).toContain('<D:resourcetype><D:collection/></D:resourcetype>')
-    expect(homeDepthZeroBody).not.toContain('<D:href>http://localhost/caldav/calendars/owner/timeline/</D:href>')
+    expect(homeDepthZeroBody).not.toContain('<D:href>/caldav/calendars/owner/timeline/</D:href>')
 
     const timelineCollection = await handleCalDav(
       new Request('http://localhost/caldav/calendars/owner/timeline/', {
@@ -253,7 +253,7 @@ describe('CalDAV service', () => {
     )
     expect(collection.status).toBe(207)
     const collectionBody = await collection.text()
-    expect(collectionBody).toContain('<D:href>http://localhost/caldav/calendars/owner/</D:href>')
+    expect(collectionBody).toContain('<D:href>/caldav/calendars/owner/</D:href>')
     expect(collectionBody).toContain('<D:resourcetype><D:collection/><C:calendar/></D:resourcetype>')
     expect(collectionBody).toContain('<D:current-user-principal>')
     expect(collectionBody).toContain('<D:principal-URL>')

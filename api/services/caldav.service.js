@@ -27,7 +27,7 @@ function calendarCollectionHref(username, category = 'meetings') {
 }
 
 function absoluteHref(baseUrl, href) {
-  return `${baseUrl}${href}`
+  return href
 }
 
 function normalizePath(pathname) {
