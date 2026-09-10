@@ -191,6 +191,8 @@ describe('CalDAV service', () => {
     expect(homeBody).toContain('<D:displayname>旅行</D:displayname>')
     expect(homeBody).toContain('<D:displayname>约会</D:displayname>')
     expect(homeBody).toContain('<D:displayname>纪念日</D:displayname>')
+    expect(homeBody).toContain('<D:href>http://localhost/caldav/calendars/owner/birthday/</D:href>')
+    expect(homeBody).toContain('<D:displayname>生日</D:displayname>')
 
     const homeDepthZero = await handleCalDav(
       new Request('http://localhost/caldav/calendars/owner/', {

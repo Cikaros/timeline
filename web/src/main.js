@@ -648,6 +648,7 @@ async function createApp() {
               <option value="travel">旅行</option>
               <option value="dating">约会</option>
               <option value="anniversary">纪念日</option>
+              <option value="birthday">生日</option>
             </select>
           </div>
           <div class="meet-field">

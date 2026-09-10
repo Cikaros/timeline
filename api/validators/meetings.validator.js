@@ -1,8 +1,11 @@
 import { z } from 'zod'
 
-const categorySchema = z.enum(['meetings', 'travel', 'dating', 'anniversary'], {
-  error: '请选择有效分类'
-})
+const categorySchema = z.enum(
+  ['meetings', 'travel', 'dating', 'anniversary', 'birthday'],
+  {
+    error: '请选择有效分类'
+  }
+)
 
 export const createMeetingsSchema = z.object({
   input: z.string({ error: '请输入日期' }).min(1).max(500).optional(),

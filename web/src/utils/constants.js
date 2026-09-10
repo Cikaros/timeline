@@ -18,5 +18,6 @@ export const MEETING_CATEGORIES = [
   { id: 'meetings', name: '见面' },
   { id: 'travel', name: '旅行' },
   { id: 'dating', name: '约会' },
-  { id: 'anniversary', name: '纪念日' }
+  { id: 'anniversary', name: '纪念日' },
+  { id: 'birthday', name: '生日' }
 ]

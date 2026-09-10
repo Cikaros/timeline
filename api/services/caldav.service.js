@@ -124,7 +124,7 @@ function buildEvent(group) {
     'VERSION:2.0',
     'PRODID:-//Timeline//Calendar 1.0//CN',
     'CALSCALE:GREGORIAN',
-    'X-WR-CALNAME:Timeline',
+    `X-WR-CALNAME:${escapeIcsText(category.name)}`,
     ...event,
     'END:VCALENDAR'
   ].flatMap(foldIcsLine).join('\r\n') + '\r\n'
