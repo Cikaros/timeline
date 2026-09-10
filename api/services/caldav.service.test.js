@@ -176,11 +176,24 @@ describe('CalDAV service', () => {
     expect(home.status).toBe(207)
     const homeBody = await home.text()
     expect(homeBody).toContain('<D:href>http://localhost/caldav/calendars/owner/</D:href>')
-    expect(homeBody).toContain('<D:resourcetype><D:collection/><C:calendar/></D:resourcetype>')
+    expect(homeBody).toContain('<D:resourcetype><D:collection/></D:resourcetype>')
     expect(homeBody).toContain('<D:displayname>Timeline</D:displayname>')
     expect(homeBody).toContain('<IC:calendar-color>#FF5C8A</IC:calendar-color>')
     expect(homeBody).toContain('<C:supported-calendar-component-set><C:comp name="VEVENT"/></C:supported-calendar-component-set>')
-    expect(homeBody).not.toContain('<D:href>http://localhost/caldav/calendars/owner/timeline/</D:href>')
+    expect(homeBody).toContain('<D:href>http://localhost/caldav/calendars/owner/timeline/</D:href>')
+
+    const homeDepthZero = await handleCalDav(
+      new Request('http://localhost/caldav/calendars/owner/', {
+        method: 'PROPFIND',
+        headers: { ...basicAuth(), Depth: '0' }
+      }),
+      { method: 'PROPFIND', pathname: '/caldav/calendars/owner/' },
+      { database, prepared }
+    )
+    expect(homeDepthZero.status).toBe(207)
+    const homeDepthZeroBody = await homeDepthZero.text()
+    expect(homeDepthZeroBody).toContain('<D:resourcetype><D:collection/></D:resourcetype>')
+    expect(homeDepthZeroBody).not.toContain('<D:href>http://localhost/caldav/calendars/owner/timeline/</D:href>')
 
     const timelineCollection = await handleCalDav(
       new Request('http://localhost/caldav/calendars/owner/timeline/', {

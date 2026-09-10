@@ -345,6 +345,45 @@ function calendarCollectionResponse(username, includeEvents, rows, body = '', ba
   ]
 }
 
+function homeCollectionResponse(username, includeChild, body = '', baseUrl = '') {
+  const principalHref = absoluteHref(baseUrl, `/caldav/principal/${encodeURIComponent(username)}/`)
+  const homeHref = absoluteHref(baseUrl, calendarHomeHref(username))
+  const props = selectPropfindProps(body, [
+    '<D:displayname>Timeline</D:displayname>',
+    `<D:current-user-principal>\n          <D:href>${xmlEscape(principalHref)}</D:href>\n        </D:current-user-principal>`,
+    `<D:owner><D:href>${xmlEscape(principalHref)}</D:href></D:owner>`,
+    '<D:resourcetype><D:collection/></D:resourcetype>',
+    `<C:calendar-home-set>\n          <D:href>${xmlEscape(homeHref)}</D:href>\n        </C:calendar-home-set>`,
+    currentUserPrivilegeSet(),
+    `<D:getetag>${xmlEscape('"timeline-home"')}</D:getetag>`,
+    '<D:creationdate>1970-01-01T00:00:00Z</D:creationdate>',
+    '<D:getcontenttype>httpd/unix-directory</D:getcontenttype>'
+  ])
+
+  const homeResponse = `  <D:response>
+    <D:href>${xmlEscape(homeHref)}</D:href>
+    <D:propstat>
+      <D:prop>
+        ${props.join('\n        ')}
+      </D:prop>
+      <D:status>HTTP/1.1 200 OK</D:status>
+    </D:propstat>
+  </D:response>`
+
+  const childResponse = includeChild
+    ? calendarCollectionResponse(
+      username,
+      false,
+      [],
+      body,
+      baseUrl,
+      absoluteHref(baseUrl, calendarCollectionHref(username))
+    )
+    : []
+
+  return [homeResponse, ...childResponse]
+}
+
 function unauthorized() {
   return new Response('Unauthorized', {
     status: 401,
@@ -761,15 +800,8 @@ async function handleCalDavRequest(req, { method, pathname }, dependencies = {})
       if (decodeURIComponent(collectionMatch[1]) !== user.username) {
         return caldavError(403, 'Forbidden')
       }
-      const depthZero = req.headers.get('depth') === '0'
-      return multistatus(calendarCollectionResponse(
-        user.username,
-        !depthZero,
-        getRows(dependencies),
-        requestBody,
-        baseUrl,
-        absoluteHref(baseUrl, calendarHomeHref(user.username))
-      ))
+      const includeChild = req.headers.get('depth') !== '0'
+      return multistatus(homeCollectionResponse(user.username, includeChild, requestBody, baseUrl))
     }
 
     const shortCollectionMatch = normalized.match(/^\/caldav\/([^/]+)$/)
